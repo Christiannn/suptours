@@ -1,7 +1,7 @@
 # GOAL:
 SUP - Stand Up Paddle - Tours.
 Engaging userfriendly web app, mobile first, for finding, planning, joining, sharing and following SUP adventures and trips.
-A Svelte 5 + SvelteKit + Supabase - Template db CRUD and TEAM/USER management Base Web Application
+Based on A Svelte 5 + SvelteKit + Supabase - CRUD and TEAM/USER management Base Web Application. Ready to be enganced, designed upon, and then deployed.
 
 # BASE APPLICATION DESIGN
 - Layout: Minimal frontpage with logo in top left, top right nav menu, left sidebar (context menu), slim footer. Main area with sections, each section have {custom no.} columns layout. Full height and fill width. Not scroll unless contex like images and text is larger than viewport.
