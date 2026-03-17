@@ -1,5 +1,7 @@
 # GOAL:
-A Svelte 5 + SvelteKit + Supabase - Template db CRUD and TEAM/USER management Base Web Application, for use by forks/copyien into new custom websites. To give web developers and LLM Agents a quick start platform for their new web application.
+SUP - Stand Up Paddle - Tours.
+Engaging userfriendly web app, mobile first, for finding, planning, joining, sharing and following SUP adventures and trips.
+A Svelte 5 + SvelteKit + Supabase - Template db CRUD and TEAM/USER management Base Web Application
 
 # BASE APPLICATION DESIGN
 - Layout: Minimal frontpage with logo in top left, top right nav menu, left sidebar (context menu), slim footer. Main area with sections, each section have {custom no.} columns layout. Full height and fill width. Not scroll unless contex like images and text is larger than viewport.
