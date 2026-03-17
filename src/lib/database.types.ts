@@ -356,6 +356,182 @@ export type Database = {
           },
         ]
       }
+      tour_participants: {
+        Row: {
+          id: string
+          joined_at: string | null
+          tour_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string | null
+          tour_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string | null
+          tour_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_participants_tour_id_fkey"
+            columns: ["tour_id"]
+            isOneToOne: false
+            referencedRelation: "tours"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_participants_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tour_reviews: {
+        Row: {
+          approved: boolean
+          comment: string | null
+          created_at: string | null
+          id: string
+          rating: number
+          tour_id: string
+          user_id: string
+        }
+        Insert: {
+          approved?: boolean
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating: number
+          tour_id: string
+          user_id: string
+        }
+        Update: {
+          approved?: boolean
+          comment?: string | null
+          created_at?: string | null
+          id?: string
+          rating?: number
+          tour_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tour_reviews_tour_id_fkey"
+            columns: ["tour_id"]
+            isOneToOne: false
+            referencedRelation: "tours"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tour_reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tours: {
+        Row: {
+          age_max: number | null
+          age_min: number | null
+          contact_info: string | null
+          created_at: string | null
+          creator_id: string
+          description: string | null
+          end_date: string | null
+          external_url: string | null
+          featured: boolean
+          id: string
+          image_url: string | null
+          latitude: number | null
+          locality: string | null
+          longitude: number | null
+          max_participants: number | null
+          parking_info: string | null
+          responsible_person: string | null
+          security_notes: string | null
+          source: Database["public"]["Enums"]["tour_source"]
+          start_date: string
+          start_time: string | null
+          status: Database["public"]["Enums"]["tour_status"]
+          tags: string[]
+          title: string
+          updated_at: string | null
+          view_count: number
+        }
+        Insert: {
+          age_max?: number | null
+          age_min?: number | null
+          contact_info?: string | null
+          created_at?: string | null
+          creator_id: string
+          description?: string | null
+          end_date?: string | null
+          external_url?: string | null
+          featured?: boolean
+          id?: string
+          image_url?: string | null
+          latitude?: number | null
+          locality?: string | null
+          longitude?: number | null
+          max_participants?: number | null
+          parking_info?: string | null
+          responsible_person?: string | null
+          security_notes?: string | null
+          source?: Database["public"]["Enums"]["tour_source"]
+          start_date: string
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["tour_status"]
+          tags?: string[]
+          title: string
+          updated_at?: string | null
+          view_count?: number
+        }
+        Update: {
+          age_max?: number | null
+          age_min?: number | null
+          contact_info?: string | null
+          created_at?: string | null
+          creator_id?: string
+          description?: string | null
+          end_date?: string | null
+          external_url?: string | null
+          featured?: boolean
+          id?: string
+          image_url?: string | null
+          latitude?: number | null
+          locality?: string | null
+          longitude?: number | null
+          max_participants?: number | null
+          parking_info?: string | null
+          responsible_person?: string | null
+          security_notes?: string | null
+          source?: Database["public"]["Enums"]["tour_source"]
+          start_date?: string
+          start_time?: string | null
+          status?: Database["public"]["Enums"]["tour_status"]
+          tags?: string[]
+          title?: string
+          updated_at?: string | null
+          view_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tours_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_bookings: {
         Row: {
           bookable_id: string
@@ -419,6 +595,8 @@ export type Database = {
     }
     Enums: {
       content_edit_level: "read" | "edit" | "super"
+      tour_source: "user" | "web"
+      tour_status: "draft" | "published" | "cancelled" | "completed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -550,6 +728,8 @@ export const Constants = {
   public: {
     Enums: {
       content_edit_level: ["read", "edit", "super"],
+      tour_source: ["user", "web"],
+      tour_status: ["draft", "published", "cancelled", "completed"],
     },
   },
 } as const

@@ -23,5 +23,35 @@ export const actions = {
 		}
 
 		redirect(303, next);
+	},
+
+	google: async ({ locals: { supabase }, url }) => {
+		const { data, error } = await supabase.auth.signInWithOAuth({
+			provider: 'google',
+			options: { redirectTo: `${url.origin}/auth/callback` }
+		});
+
+		if (error) {
+			return { message: error.message };
+		}
+
+		if (data.url) {
+			redirect(303, data.url);
+		}
+	},
+
+	facebook: async ({ locals: { supabase }, url }) => {
+		const { data, error } = await supabase.auth.signInWithOAuth({
+			provider: 'facebook',
+			options: { redirectTo: `${url.origin}/auth/callback` }
+		});
+
+		if (error) {
+			return { message: error.message };
+		}
+
+		if (data.url) {
+			redirect(303, data.url);
+		}
 	}
 } satisfies Actions;

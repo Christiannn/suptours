@@ -3,213 +3,152 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import favicon from '$lib/assets/favicon.svg';
 	import CookieConsent from '$lib/Shared/CookieConsent.svelte';
 	import DonateButton from '$lib/Shared/DonateButton.svelte';
 	import ChatWidget from '$lib/Shared/ChatWidget.svelte';
 
 	let { data, children } = $props();
 
-	type Crumb = {
-		label: string;
-		path: string | null;
-	};
+	let mobileMenuOpen = $state(false);
 
 	const pathname = $derived(page.url.pathname);
 	const segments = $derived(pathname.split('/').filter(Boolean));
 	const activeSection = $derived(
-		segments[0] === 'blog'
-			? 'blog'
-			: segments[0] === 'admin'
-				? 'admin'
-			: segments[0] === 'booking'
-				? 'booking'
-			: segments[0] === 'profile' || segments[0] === 'team'
-				? 'profile'
-				: 'home'
+		segments[0] === 'tours'
+			? 'tours'
+			: segments[0] === 'blog'
+				? 'blog'
+				: segments[0] === 'community'
+					? 'community'
+					: segments[0] === 'marketplace'
+						? 'marketplace'
+						: segments[0] === 'admin'
+							? 'admin'
+							: segments[0] === 'profile' || segments[0] === 'team'
+								? 'profile'
+								: 'home'
 	);
 	const displayName = $derived(data.user?.user_metadata?.display_name ?? data.user?.email ?? 'Profile');
 
-	const sidebarLinks = $derived.by(() => {
-		if (activeSection === 'blog') {
-			const links = [{ label: 'All posts', path: '/blog' }];
-			if (data.user) {
-				links.push({ label: 'New post', path: '/blog/new' });
-				links.push({ label: 'Edit my posts', path: '/blog/edit' });
-			}
-			return links;
-		}
-
-		if (activeSection === 'profile') {
-			const links = [{ label: 'Profile', path: '/profile' }];
-			if (data.user) {
-				links.push({ label: 'Edit profile', path: '/profile/edit' });
-				links.push({ label: 'Team manager', path: '/team' });
-			}
-			return links;
-		}
-
-		if (activeSection === 'admin') {
-			return [
-				{ label: 'Admin home', path: '/admin' },
-				{ label: 'Gallary', path: '/admin/gallary' },
-				{ label: 'Bookings', path: '/admin/bookings' }
-			];
-		}
-
-		if (activeSection === 'booking') {
-			return [{ label: 'Booking', path: '/booking' }];
-		}
-
-		return [
-			{ label: 'Home', path: '/' },
-			{ label: 'Blog', path: '/blog' },
-			{ label: 'Booking', path: '/booking' },
-			...(data.user ? [{ label: 'Profile', path: '/profile' }, { label: 'Admin', path: '/admin' }] : [])
-		];
-	});
-
-	const breadcrumbs = $derived.by(() => {
-		const trail: Crumb[] = [{ label: 'home', path: '/' }];
-		if (segments.length === 0) return trail;
-
-		if (segments[0] === 'team') {
-			trail.push({ label: 'profile', path: '/profile' });
-		}
-
-		let cumulative = '';
-		for (let i = 0; i < segments.length; i += 1) {
-			const segment = segments[i];
-			cumulative += `/${segment}`;
-			const isLast = i === segments.length - 1;
-
-			let label = segment;
-			if (segment === 'blog') label = 'blog';
-			else if (segment === 'profile') label = 'profile';
-			else if (segment === 'team') label = 'teams';
-			else if (segment === 'admin') label = 'admin';
-			else if (segment === 'booking' || segment === 'bookings') label = 'booking';
-			else if (segment === 'edit') label = 'edit';
-			else if (segment === 'new') label = 'new';
-			else label = decodeURIComponent(segment).replace(/-/g, ' ');
-
-			const alreadyAdded = trail.some((item) => item.label === label && item.path === (isLast ? null : cumulative));
-			if (!alreadyAdded) {
-				trail.push({ label, path: isLast ? null : cumulative });
-			}
-		}
-
-		return trail;
-	});
-
-	function isSidebarLinkSelected(path: string) {
-		if (path === '/') return pathname === '/';
-		if (path === '/admin') return pathname === '/admin';
-		return pathname === path || pathname.startsWith(`${path}/`);
-	}
+	// Check if current page is a full-bleed page (no sidebar layout)
+	const isFullBleedPage = $derived(
+		activeSection === 'tours' || activeSection === 'home'
+	);
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<title>SUP Tours — Find Your Next Paddle Adventure</title>
+	<meta name="description" content="Plan, find, share, and join Stand Up Paddle tours across Denmark and beyond." />
 </svelte:head>
 
 <div id="app" class="app">
+	<!-- Desktop Header -->
 	<header class="header">
-		<a href={resolve('/')} class="logo">SSBv1</a>
-		<nav class="nav">
-			<a href={resolve('/')} class:active={activeSection === 'home'}>Home</a>
-			<span class="nav-separator">|</span>
-			<a href={resolve('/blog')} class:active={activeSection === 'blog'}>Blog</a>
-			<span class="nav-separator">|</span>
-			<a href={resolve('/booking')} class:active={activeSection === 'booking'}>Booking</a>
+		<a href={resolve('/')} class="logo">
+			<span class="logo-brand">SUP Tours</span>
+			<span class="logo-sub">Denmark & Beyond</span>
+		</a>
+
+		<nav class="nav-desktop">
+			<a href={resolve('/')} class="nav-link" class:active={activeSection === 'home'}>Home</a>
+			<a href={resolve('/tours')} class="nav-link" class:active={activeSection === 'tours'}>Tours</a>
+			<a href={resolve('/community')} class="nav-link" class:active={activeSection === 'community'}>Community</a>
+			<a href={resolve('/marketplace')} class="nav-link" class:active={activeSection === 'marketplace'}>Market</a>
+			<a href={resolve('/blog')} class="nav-link" class:active={activeSection === 'blog'}>Blog</a>
 			{#if data.user}
-				<span class="nav-separator">|</span>
-				<a href={resolve('/admin')} class:active={activeSection === 'admin'}>Admin</a>
-				<span class="nav-separator">|</span>
 				<details class="profile-menu">
-					<summary class:active={activeSection === 'profile'}>hi! {displayName}</summary>
+					<summary class="nav-link" class:active={activeSection === 'profile'}>
+						<span class="material-symbols-outlined" style="font-size:20px;vertical-align:middle">account_circle</span>
+						{displayName}
+					</summary>
 					<div class="profile-menu-list">
 						<a href={resolve('/profile')}>Profile</a>
 						<a href={resolve('/team')}>Team manager</a>
+						<a href={resolve('/admin')}>Admin</a>
+						<hr />
 						<form method="POST" action={resolve('/logout')} class="dropdown-logout-form">
-							<button type="submit">Logout</button>
+							<button type="submit">Log out</button>
 						</form>
 					</div>
 				</details>
 			{:else}
-				<span class="nav-separator">|</span>
-				<a href={resolve('/login')}>Log in</a>
-				<a href={resolve('/signup')}>Sign up</a>
+				<a href={resolve('/login')} class="nav-link">Log in</a>
+				<a href={resolve('/signup')} class="btn-primary-sm">Sign up</a>
 			{/if}
 		</nav>
+
+		<!-- Mobile hamburger -->
+		<button class="hamburger" onclick={() => mobileMenuOpen = !mobileMenuOpen} aria-label="Toggle menu">
+			<span class="material-symbols-outlined">{mobileMenuOpen ? 'close' : 'menu'}</span>
+		</button>
 	</header>
 
-	<div class="main-wrapper">
-		<aside class="sidebar">
-			<nav class="sidebar-nav">
-				{#each sidebarLinks as link (`${link.path}-${link.label}`)}
-					<button
-						type="button"
-						class="nav-link-button"
-						class:selected={isSidebarLinkSelected(link.path)}
-						aria-current={isSidebarLinkSelected(link.path) ? 'page' : undefined}
-						onclick={() => goto(resolve(link.path as any))}
-					>
-						{link.label}
-					</button>
-				{/each}
-			</nav>
+	<!-- Mobile dropdown menu -->
+	{#if mobileMenuOpen}
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="mobile-overlay" onclick={() => mobileMenuOpen = false} onkeydown={() => {}}></div>
+		<nav class="mobile-menu">
+			<a href={resolve('/')} onclick={() => mobileMenuOpen = false}>Home</a>
+			<a href={resolve('/tours')} onclick={() => mobileMenuOpen = false}>Tours</a>
+			<a href={resolve('/community')} onclick={() => mobileMenuOpen = false}>Community</a>
+			<a href={resolve('/marketplace')} onclick={() => mobileMenuOpen = false}>Market</a>
+			<a href={resolve('/blog')} onclick={() => mobileMenuOpen = false}>Blog</a>
+			<hr />
 			{#if data.user}
-				<section class="my-bookings-card">
-					<h3>My bookings</h3>
-					{#if data.myBookings && data.myBookings.length > 0}
-						<ul>
-							{#each data.myBookings as booking (booking.id)}
-								<li>
-									<strong>{booking.bookable_name}</strong>
-									<span>{booking.booking_date} {booking.timeslot}</span>
-								</li>
-							{/each}
-						</ul>
-						<a href={resolve('/booking')}>Open booking</a>
-					{:else}
-						<p>No bookings yet.</p>
-					{/if}
-				</section>
+				<a href={resolve('/profile')} onclick={() => mobileMenuOpen = false}>Profile</a>
+				<a href={resolve('/admin')} onclick={() => mobileMenuOpen = false}>Admin</a>
+				<form method="POST" action={resolve('/logout')}>
+					<button type="submit">Log out</button>
+				</form>
+			{:else}
+				<a href={resolve('/login')} onclick={() => mobileMenuOpen = false}>Log in</a>
+				<a href={resolve('/signup')} onclick={() => mobileMenuOpen = false}>Sign up</a>
 			{/if}
-		</aside>
+		</nav>
+	{/if}
 
-		<div class="content-column">
-			{#if pathname !== '/'}
-				<nav class="breadcrumbs" aria-label="Breadcrumb">
-					{#each breadcrumbs as crumb, i (crumb.path ?? `${crumb.label}-${i}`)}
-						{#if i > 0}
-							<span aria-hidden="true"> &gt; </span>
-						{/if}
-						{#if crumb.path}
-							<button
-								type="button"
-								class="crumb-link-button"
-								onclick={() => goto(resolve(crumb.path as any))}
-							>
-								{crumb.label}
-							</button>
-						{:else}
-							<span class="current">{crumb.label}</span>
-						{/if}
-					{/each}
-				</nav>
-			{/if}
-			<main class="main" class:flush-content={pathname.startsWith('/admin/gallary')}>
-				{@render children()}
-			</main>
-		</div>
-	</div>
+	<!-- Main content -->
+	<main class="main-content" class:full-bleed={isFullBleedPage}>
+		{@render children()}
+	</main>
 
+	<!-- Footer (hidden on mobile when bottom nav shows) -->
 	<footer class="footer">
-		<span class="footer-text">SSBv1 Template</span>
-		<DonateButton />
+		<div class="footer-inner">
+			<span class="footer-brand">SUP Tours</span>
+			<span class="footer-links">
+				<a href={resolve('/blog')}>Blog</a>
+				<a href={resolve('/community')}>Community</a>
+			</span>
+			<DonateButton />
+		</div>
 	</footer>
+
+	<!-- Mobile Bottom Navigation -->
+	<nav class="bottom-nav">
+		<a href={resolve('/tours')} class="bottom-nav-item" class:active={activeSection === 'tours'}>
+			<span class="material-symbols-outlined">calendar_month</span>
+			<span class="bottom-nav-label">Tours</span>
+		</a>
+		<a href={resolve('/')} class="bottom-nav-item" class:active={activeSection === 'home'}>
+			<span class="material-symbols-outlined">explore</span>
+			<span class="bottom-nav-label">Explore</span>
+		</a>
+		{#if data.user}
+			<a href={resolve('/tours/new')} class="bottom-nav-item bottom-nav-fab">
+				<span class="material-symbols-outlined">add</span>
+			</a>
+		{/if}
+		<a href={resolve('/community')} class="bottom-nav-item" class:active={activeSection === 'community'}>
+			<span class="material-symbols-outlined">forum</span>
+			<span class="bottom-nav-label">Community</span>
+		</a>
+		<a href={resolve('/profile')} class="bottom-nav-item" class:active={activeSection === 'profile'}>
+			<span class="material-symbols-outlined">account_circle</span>
+			<span class="bottom-nav-label">Profile</span>
+		</a>
+	</nav>
+
 	<CookieConsent />
 	<ChatWidget />
 </div>
@@ -219,48 +158,93 @@
 		display: flex;
 		flex-direction: column;
 		min-height: 100vh;
+		background: var(--color-bg);
 	}
 
+	/* ---- HEADER ---- */
 	.header {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: var(--section-padding);
+		padding: 0.75rem var(--section-padding);
+		background: var(--color-surface);
 		border-bottom: var(--border-width) solid var(--color-border);
-		flex-shrink: 0;
+		position: sticky;
+		top: 0;
+		z-index: 100;
 	}
 
 	.logo {
-		font-size: var(--font-size-xl);
-		font-weight: 600;
-		color: var(--color-text);
-		text-decoration: none;
-	}
-
-	.logo:hover {
-		color: var(--color-accent);
-		text-decoration: none;
-	}
-
-	.nav {
 		display: flex;
-		gap: 1rem;
+		flex-direction: column;
+		text-decoration: none;
+		line-height: 1.1;
+	}
+
+	.logo:hover { text-decoration: none; }
+
+	.logo-brand {
+		font-size: var(--font-size-xl);
+		font-weight: 700;
+		color: var(--color-text);
+		letter-spacing: -0.02em;
+	}
+
+	.logo-sub {
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		color: var(--color-primary);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	/* ---- DESKTOP NAV ---- */
+	.nav-desktop {
+		display: none;
+		gap: 0.25rem;
 		align-items: center;
 	}
 
-	.nav a {
+	.nav-link {
+		padding: 0.4rem 0.75rem;
+		color: var(--color-text);
+		text-decoration: none;
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		border-radius: var(--border-radius);
+		transition: background var(--transition-fast), color var(--transition-fast);
+	}
+
+	.nav-link:hover {
+		background: var(--color-bg-muted);
+		text-decoration: none;
+		color: var(--color-primary);
+	}
+
+	.nav-link.active {
+		color: var(--color-primary);
+		background: var(--color-primary-light);
+	}
+
+	.btn-primary-sm {
+		display: inline-flex;
+		align-items: center;
+		padding: 0.4rem 1rem;
+		background: var(--color-primary);
+		color: var(--color-text-light);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		border-radius: var(--border-radius-full);
+		text-decoration: none;
+		transition: background var(--transition-fast);
+	}
+
+	.btn-primary-sm:hover {
+		background: var(--color-primary-dark);
 		text-decoration: none;
 	}
 
-	.nav a.active {
-		text-decoration: underline;
-		text-underline-offset: 0.2rem;
-	}
-
-	.nav-separator {
-		color: var(--color-text-muted);
-	}
-
+	/* Profile dropdown */
 	.profile-menu {
 		position: relative;
 	}
@@ -270,27 +254,21 @@
 		cursor: pointer;
 	}
 
-	.profile-menu summary::-webkit-details-marker {
-		display: none;
-	}
-
-	.profile-menu summary.active {
-		text-decoration: underline;
-		text-underline-offset: 0.2rem;
-	}
+	.profile-menu summary::-webkit-details-marker { display: none; }
 
 	.profile-menu-list {
 		position: absolute;
-		top: calc(100% + 0.4rem);
+		top: calc(100% + 0.5rem);
 		right: 0;
-		min-width: 11rem;
+		min-width: 12rem;
 		display: grid;
-		gap: 0.25rem;
-		padding: 0.4rem;
+		gap: 0.125rem;
+		padding: 0.5rem;
+		background: var(--color-surface);
 		border: var(--border-width) solid var(--color-border);
-		border-radius: var(--border-radius-sm);
-		background: var(--color-bg);
-		z-index: 20;
+		border-radius: var(--border-radius-lg);
+		box-shadow: var(--shadow-lg);
+		z-index: 110;
 	}
 
 	.profile-menu-list a,
@@ -298,12 +276,13 @@
 		display: block;
 		width: 100%;
 		text-align: left;
-		padding: 0.35rem 0.5rem;
+		padding: 0.5rem 0.75rem;
 		background: transparent;
 		border: none;
 		border-radius: var(--border-radius-sm);
 		font: inherit;
-		color: inherit;
+		font-size: var(--font-size-sm);
+		color: var(--color-text);
 		text-decoration: none;
 		cursor: pointer;
 	}
@@ -311,159 +290,211 @@
 	.profile-menu-list a:hover,
 	.profile-menu-list button:hover {
 		background: var(--color-bg-muted);
+		color: var(--color-primary);
 	}
 
-	.dropdown-logout-form {
-		margin: 0;
-	}
-
-	.main-wrapper {
-		display: flex;
-		flex: 1;
-		min-height: 0;
-		overflow: hidden;
-	}
-
-	.sidebar {
-		flex-shrink: 0;
-		width: 12rem;
-		border-right: var(--border-width) solid var(--color-border);
-		padding: var(--section-padding);
-	}
-
-	.sidebar-nav {
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.my-bookings-card {
-		margin-top: 1rem;
-		padding-top: 0.75rem;
+	.profile-menu-list hr {
+		border: none;
 		border-top: var(--border-width) solid var(--color-border);
-		display: grid;
-		gap: 0.5rem;
+		margin: 0.25rem 0;
 	}
 
-	.my-bookings-card h3 {
-		margin: 0;
-		font-size: var(--font-size-sm);
-	}
+	.dropdown-logout-form { margin: 0; }
 
-	.my-bookings-card ul {
-		list-style: none;
-		margin: 0;
-		padding: 0;
-		display: grid;
-		gap: 0.35rem;
-	}
-
-	.my-bookings-card li {
-		display: grid;
-		font-size: var(--font-size-sm);
-	}
-
-	.my-bookings-card li span {
-		color: var(--color-text-muted);
-	}
-
-	.my-bookings-card p {
-		margin: 0;
-		font-size: var(--font-size-sm);
-		color: var(--color-text-muted);
-	}
-
-	.nav-link-button {
-		background: transparent;
-		border: none;
-		padding: 0.25rem 0;
-		margin: 0;
-		text-align: left;
-		font: inherit;
-		color: var(--color-accent);
+	/* ---- HAMBURGER ---- */
+	.hamburger {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.5rem;
+		height: 2.5rem;
+		background: var(--color-surface);
+		border: var(--border-width) solid var(--color-border);
+		border-radius: var(--border-radius);
 		cursor: pointer;
-	}
-
-	.nav-link-button.selected {
 		color: var(--color-text);
-		font-weight: 600;
-		text-decoration: underline;
-		text-underline-offset: 0.2rem;
 	}
 
-	.nav-link-button:hover {
-		text-decoration: underline;
+	/* ---- MOBILE MENU ---- */
+	.mobile-overlay {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.3);
+		z-index: 90;
 	}
 
-	.content-column {
+	.mobile-menu {
+		position: fixed;
+		top: 0;
+		right: 0;
+		width: 16rem;
+		height: 100vh;
+		background: var(--color-surface);
+		padding: 4.5rem 1.5rem 2rem;
 		display: flex;
 		flex-direction: column;
-		flex: 1;
-		min-width: 0;
-	}
-
-	.breadcrumbs {
-		padding: 0.45rem var(--section-padding);
-		border-bottom: var(--border-width) solid var(--color-border);
-		font-size: var(--font-size-sm);
-		color: var(--color-text-muted);
-		white-space: nowrap;
-		overflow-x: auto;
-	}
-
-	.crumb-link-button {
-		background: transparent;
-		border: none;
-		padding: 0;
-		margin: 0;
-		font: inherit;
-		color: inherit;
-		cursor: pointer;
-	}
-
-	.crumb-link-button:hover {
-		text-decoration: underline;
-	}
-
-	.breadcrumbs .current {
-		color: var(--color-text);
-		font-weight: 600;
-	}
-
-	.main {
-		flex: 1;
+		gap: 0.25rem;
+		z-index: 95;
+		box-shadow: var(--shadow-lg);
 		overflow-y: auto;
+	}
+
+	.mobile-menu a,
+	.mobile-menu button {
+		display: block;
+		padding: 0.75rem 0.5rem;
+		text-decoration: none;
+		color: var(--color-text);
+		font-weight: 500;
+		border: none;
+		background: none;
+		font: inherit;
+		font-size: var(--font-size-base);
+		text-align: left;
+		cursor: pointer;
+		border-radius: var(--border-radius-sm);
+	}
+
+	.mobile-menu a:hover,
+	.mobile-menu button:hover {
+		background: var(--color-bg-muted);
+		color: var(--color-primary);
+	}
+
+	.mobile-menu hr {
+		border: none;
+		border-top: var(--border-width) solid var(--color-border);
+		margin: 0.5rem 0;
+	}
+
+	.mobile-menu form { margin: 0; }
+
+	/* ---- MAIN CONTENT ---- */
+	.main-content {
+		flex: 1;
 		padding: var(--section-padding);
+		padding-bottom: 6rem; /* space for bottom nav on mobile */
 	}
 
-	.main.flush-content {
+	.main-content.full-bleed {
 		padding: 0;
+		padding-bottom: 5rem;
 	}
 
+	/* ---- FOOTER ---- */
 	.footer {
+		border-top: var(--border-width) solid var(--color-border);
+		background: var(--color-surface);
+		padding: 1.5rem var(--section-padding);
+	}
+
+	.footer-inner {
 		display: flex;
 		justify-content: space-between;
 		align-items: center;
-		padding: 0.5rem var(--section-padding);
-		border-top: var(--border-width) solid var(--color-border);
-		font-size: var(--font-size-sm);
-		color: var(--color-text-muted);
-		flex-shrink: 0;
+		flex-wrap: wrap;
+		gap: 1rem;
 	}
 
-	.footer-text {
-		margin: 0;
+	.footer-brand {
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
+	.footer-links {
+		display: flex;
+		gap: 1rem;
+	}
+
+	.footer-links a {
+		color: var(--color-text-muted);
+		text-decoration: none;
+		font-size: var(--font-size-sm);
+	}
+
+	.footer-links a:hover {
+		color: var(--color-primary);
+	}
+
+	/* ---- BOTTOM NAV (mobile) ---- */
+	.bottom-nav {
+		position: fixed;
+		bottom: 0;
+		left: 0;
+		right: 0;
+		display: flex;
+		justify-content: space-around;
+		align-items: center;
+		background: var(--color-surface);
+		border-top: var(--border-width) solid var(--color-border);
+		padding: 0.4rem 0 max(0.4rem, env(safe-area-inset-bottom));
+		z-index: 80;
+	}
+
+	.bottom-nav-item {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		gap: 0.15rem;
+		padding: 0.25rem 0.75rem;
+		color: var(--color-text-muted);
+		text-decoration: none;
+		font-size: var(--font-size-xs);
+		transition: color var(--transition-fast);
+	}
+
+	.bottom-nav-item:hover { text-decoration: none; }
+
+	.bottom-nav-item.active {
+		color: var(--color-primary);
+	}
+
+	.bottom-nav-item .material-symbols-outlined {
+		font-size: 24px;
+	}
+
+	.bottom-nav-label {
+		font-weight: 500;
+	}
+
+	.bottom-nav-fab {
+		position: relative;
+		top: -0.75rem;
+		width: 3rem;
+		height: 3rem;
+		border-radius: var(--border-radius-full);
+		background: var(--color-primary);
+		color: var(--color-text-light);
+		justify-content: center;
+		box-shadow: var(--shadow-primary);
+		padding: 0;
+	}
+
+	.bottom-nav-fab .material-symbols-outlined {
+		font-size: 28px;
+	}
+
+	.bottom-nav-fab:hover {
+		background: var(--color-primary-dark);
+	}
+
+	/* ---- RESPONSIVE ---- */
+	@media (min-width: 768px) {
+		.hamburger { display: none; }
+		.nav-desktop { display: flex; }
+		.bottom-nav { display: none; }
+		.footer { display: block; }
+
+		.main-content {
+			padding-bottom: var(--section-padding);
+		}
+
+		.main-content.full-bleed {
+			padding-bottom: 0;
+		}
 	}
 
 	@media (max-width: 767px) {
-		.sidebar {
-			width: 8rem;
-		}
-	}
-
-	@media (max-width: 479px) {
-		.sidebar {
-			width: 6rem;
-		}
+		.footer { display: none; }
 	}
 </style>

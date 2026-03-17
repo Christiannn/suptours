@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git ls-remote:*)",
+      "Bash(gh api:*)",
+      "Bash(gh repo:*)",
+      "Bash(git clone:*)",
+      "Bash(npm install:*)",
+      "Bash(npm rebuild:*)",
+      "Bash(npx svelte-check:*)",
+      "Bash(npx svelte-kit:*)",
+      "Bash(npx supabase:*)",
+      "Bash(npm run:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:5174/tours)"
+    ]
+  }
+}
