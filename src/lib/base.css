@@ -1,0 +1,116 @@
+/* SSBv1 Base - Reset, normalize, layout */
+@import './theme.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+/* Full viewport layout - no scroll until content overflow */
+#app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+main {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0 0 0.5em;
+  line-height: var(--line-height-tight);
+}
+
+p {
+  margin: 0 0 0.75em;
+}
+
+a {
+  color: var(--color-accent);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+/* Forms */
+input, textarea, select, button {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+input, textarea, select {
+  padding: var(--form-padding);
+  margin: 0;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--border-radius);
+  line-height: 1.2;
+}
+
+button {
+  cursor: pointer;
+  padding: var(--form-padding);
+  margin: 0;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--border-radius);
+  background: var(--color-bg);
+  line-height: 1.2;
+}
+
+button:hover {
+  background: var(--color-bg-muted);
+}
+
+button.primary {
+  background: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+}
+
+button.primary:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+}
+
+/* Layout utilities */
+.container {
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 var(--section-padding);
+}
+
+@media (min-width: 480px) {
+  .container { padding: 0 1.5rem; }
+}
+
+@media (min-width: 768px) {
+  .container { padding: 0 2rem; }
+}
+
+@media (min-width: 1280px) {
+  .container { padding: 0 2.5rem; }
+}

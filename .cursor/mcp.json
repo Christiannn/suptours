@@ -1,0 +1,21 @@
+{
+	"mcpServers": {
+		"svelte": {
+			"command": "npx",
+			"args": ["-y", "@sveltejs/mcp"]
+		},
+		"supabase": {
+			"command": "npx",
+			"args": ["-y", "@supabase/mcp"],
+			"env": {
+				"SUPABASE_PROJECT_REF": "SSBv1",
+				"SUPABASE_URL": "http://127.0.0.1:54321",
+				"SUPABASE_ANON_KEY": "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH"
+			}
+    	},
+		"playwright": {
+			"command": "npx",
+			"args": ["-y", "@playwright/mcp"]
+		}
+	}
+}
