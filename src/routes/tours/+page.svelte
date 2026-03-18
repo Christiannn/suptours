@@ -366,6 +366,10 @@
 		color: white;
 	}
 
+	.tours-bar__tag--active:hover {
+		color: white;
+	}
+
 	/* ---- CONTENT ---- */
 	.tours-content {
 		padding: 1.25rem 1rem 2rem;

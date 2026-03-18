@@ -96,6 +96,7 @@ export const actions = {
 			if (error.code === '23505') {
 				return fail(400, { message: 'Already joined' });
 			}
+			console.error('[tours/join] Supabase error:', error);
 			return fail(500, { message: error.message });
 		}
 
@@ -117,7 +118,10 @@ export const actions = {
 			.eq('tour_id', tour_id)
 			.eq('user_id', user.id);
 
-		if (error) return fail(500, { message: error.message });
+		if (error) {
+			console.error('[tours/leave] Supabase error:', error);
+			return fail(500, { message: error.message });
+		}
 
 		return { success: true };
 	}

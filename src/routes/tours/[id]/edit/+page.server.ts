@@ -74,6 +74,7 @@ export const actions = {
 			.eq('creator_id', user.id);
 
 		if (updateError) {
+			console.error('[tour/update] Supabase error:', updateError);
 			return fail(500, { message: updateError.message });
 		}
 

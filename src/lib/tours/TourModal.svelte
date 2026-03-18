@@ -14,6 +14,8 @@
 		onclose: () => void;
 	} = $props();
 
+	let joining = $state(false);
+
 	onMount(() => {
 		// Modal mounted
 	});
@@ -176,10 +178,22 @@
 		<!-- Join action -->
 		<div class="modal__action">
 			{#if user}
-				<form method="POST" action="?/{tour.has_joined ? 'leave' : 'join'}" use:enhance>
+				<form method="POST" action="?/{tour.has_joined ? 'leave' : 'join'}" use:enhance={() => {
+					joining = true;
+					return async ({ result, update }) => {
+						joining = false;
+						if (result.type === 'failure') {
+							console.error('[TourModal] Join/Leave error:', result.data?.message, result);
+						}
+						await update();
+					};
+				}}>
 					<input type="hidden" name="tour_id" value={tour.id} />
-					<button type="submit" class="modal__join-btn" class:modal__join-btn--joined={tour.has_joined}>
-						{#if tour.has_joined}
+					<button type="submit" class="modal__join-btn" class:modal__join-btn--joined={tour.has_joined} disabled={joining}>
+						{#if joining}
+							<span class="modal__spinner"></span>
+							{tour.has_joined ? 'Leaving...' : 'Joining...'}
+						{:else if tour.has_joined}
 							<span class="material-symbols-outlined">check_circle</span>
 							You're in! (Leave)
 						{:else}
@@ -435,6 +449,21 @@
 	}
 
 	.modal__action form { margin: 0; }
+
+	.modal__spinner {
+		display: inline-block;
+		width: 1rem;
+		height: 1rem;
+		border: 2px solid currentColor;
+		border-top-color: transparent;
+		border-radius: 50%;
+		animation: modal-spin 0.7s linear infinite;
+		flex-shrink: 0;
+	}
+
+	@keyframes modal-spin {
+		to { transform: rotate(360deg); }
+	}
 
 	.modal__join-btn {
 		display: flex;
