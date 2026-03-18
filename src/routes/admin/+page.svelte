@@ -8,6 +8,7 @@
 	<nav class="admin-links">
 		<a href={resolve('/admin/gallary')}>Gallary management</a>
 		<a href={resolve('/admin/blog/new')}>New blog post</a>
+		<a href={resolve('/admin/community')}>Community moderation</a>
 	</nav>
 </section>
 
