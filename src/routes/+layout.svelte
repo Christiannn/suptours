@@ -45,7 +45,7 @@
 	<header class="header">
 		<a href={resolve('/')} class="logo">
 			<span class="logo-brand">SUP Tours</span>
-			<span class="logo-sub">Denmark & Beyond</span>
+			<span class="logo-sub">Denmark! Lets go!</span>
 		</a>
 
 		<nav class="nav-desktop">
