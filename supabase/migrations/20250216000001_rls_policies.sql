@@ -109,5 +109,3 @@ CREATE POLICY "Author or edit/super can delete own; super can delete any" ON pub
 
 -- NEWSLETTER_SUBSCRIBERS
 CREATE POLICY "Anyone can subscribe" ON public.newsletter_subscribers FOR INSERT WITH CHECK (true);
-CREATE POLICY "Users can view own subscriptions" ON public.newsletter_subscribers FOR SELECT
-  USING (user_id = auth.uid() OR user_id IS NULL);

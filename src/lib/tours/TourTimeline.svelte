@@ -4,10 +4,12 @@
 
 	let {
 		groups,
-		onselect
+		onselect,
+		user = null
 	}: {
 		groups: TourGroup[];
 		onselect: (tour: Tour) => void;
+		user?: any;
 	} = $props();
 </script>
 
@@ -29,7 +31,7 @@
 			<!-- Tour cards -->
 			<div class="timeline__cards">
 				{#each group.tours as tour (tour.id)}
-					<TourCard {tour} onclick={() => onselect(tour)} />
+					<TourCard {tour} onclick={() => onselect(tour)} {user} />
 				{/each}
 			</div>
 		</div>

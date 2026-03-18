@@ -5,7 +5,6 @@
 	import { resolve } from '$app/paths';
 	import CookieConsent from '$lib/Shared/CookieConsent.svelte';
 	import DonateButton from '$lib/Shared/DonateButton.svelte';
-	import ChatWidget from '$lib/Shared/ChatWidget.svelte';
 
 	let { data, children } = $props();
 
@@ -64,7 +63,9 @@
 					<div class="profile-menu-list">
 						<a href={resolve('/profile')}>Profile</a>
 						<a href={resolve('/team')}>Team manager</a>
-						<a href={resolve('/admin')}>Admin</a>
+						{#if data.isAdmin}
+							<a href={resolve('/admin')}>Admin</a>
+						{/if}
 						<hr />
 						<form method="POST" action={resolve('/logout')} class="dropdown-logout-form">
 							<button type="submit">Log out</button>
@@ -96,7 +97,9 @@
 			<hr />
 			{#if data.user}
 				<a href={resolve('/profile')} onclick={() => mobileMenuOpen = false}>Profile</a>
-				<a href={resolve('/admin')} onclick={() => mobileMenuOpen = false}>Admin</a>
+				{#if data.isAdmin}
+					<a href={resolve('/admin')} onclick={() => mobileMenuOpen = false}>Admin</a>
+				{/if}
 				<form method="POST" action={resolve('/logout')}>
 					<button type="submit">Log out</button>
 				</form>
@@ -150,7 +153,6 @@
 	</nav>
 
 	<CookieConsent />
-	<ChatWidget />
 </div>
 
 <style>

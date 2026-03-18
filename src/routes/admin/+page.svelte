@@ -7,7 +7,7 @@
 	<p>Choose an admin module.</p>
 	<nav class="admin-links">
 		<a href={resolve('/admin/gallary')}>Gallary management</a>
-		<a href={resolve('/admin/bookings')}>Booking setup</a>
+		<a href={resolve('/admin/blog/new')}>New blog post</a>
 	</nav>
 </section>
 

@@ -1,17 +1,52 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { fly } from 'svelte/transition';
+	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import TourTimeline from '$lib/tours/TourTimeline.svelte';
 	import TourModal from '$lib/tours/TourModal.svelte';
 	import { groupToursByDate, type Tour } from '$lib/tours/dateGrouping';
 
 	let { data } = $props();
 
-	let selectedTour = $state<Tour | null>(null);
 	let filterOpen = $state(false);
 	let activeTags = $state<string[]>([]);
+	let visibleCount = $state(5);
+	let loadMoreTrigger = $state<HTMLElement | null>(null);
+
+	const invitations = [
+		"Ready to lead? Create your own tour!",
+		"Got a favorite spot? Share it with a new tour!",
+		"Invite others to your next paddle adventure!",
+		"Be the spark! Start a community tour today.",
+		"Know a hidden gem? Lead a tour there!",
+		"Want company on the water? Create a tour!"
+	];
+
+	// Helper to create a URL-friendly slug
+	function slugify(text: string) {
+		return text.toLowerCase()
+			.replace(/[^\w ]+/g, '')
+			.replace(/ +/g, '-');
+	}
+
+	function getTourSlug(tour: Tour) {
+		return `${slugify(tour.title)}-${tour.start_date}`;
+	}
+
+	// Source of truth is now the URL. selectedTour is derived from it.
+	const selectedTour = $derived.by(() => {
+		const showParam = page.url.searchParams.get('show');
+		if (!showParam) return null;
+		return data.tours.find(t => getTourSlug(t) === showParam) ?? null;
+	});
+
+	// Get a stable set of random indices for invitations based on tour count
+	const getInvitation = (index: number) => invitations[index % invitations.length];
 
 	// Collect all unique tags from tours, sorted by frequency
-	const allTags = $derived(() => {
+	const allTags = $derived.by(() => {
 		const counts = new Map<string, number>();
 		for (const tour of data.tours) {
 			for (const tag of tour.tags) {
@@ -23,35 +58,61 @@
 			.map(([tag]) => tag);
 	});
 
-	// Filter tours by selected tags (a tour matches if it has ANY of the active tags)
-	const filteredTours = $derived(() => {
+	// Filter tours by selected tags
+	const filteredTours = $derived.by(() => {
 		if (activeTags.length === 0) return data.tours;
 		return data.tours.filter((tour: Tour) =>
 			activeTags.some(tag => tour.tags.includes(tag))
 		);
 	});
 
-	const groups = $derived(groupToursByDate(filteredTours()));
+	// Slice tours for pagination
+	const visibleTours = $derived(filteredTours.slice(0, visibleCount));
+	const hasMore = $derived(visibleCount < filteredTours.length);
+
+	const groups = $derived(groupToursByDate(visibleTours));
 
 	function toggleTag(tag: string) {
-		if (activeTags.includes(tag)) {
-			activeTags = activeTags.filter(t => t !== tag);
-		} else {
-			activeTags = [...activeTags, tag];
-		}
+		activeTags = activeTags.includes(tag) 
+			? activeTags.filter(t => t !== tag) 
+			: [...activeTags, tag];
+		visibleCount = 5; // Reset pagination on filter change
 	}
 
 	function clearFilters() {
 		activeTags = [];
+		visibleCount = 5;
 	}
 
 	function openTour(tour: Tour) {
-		selectedTour = tour;
+		const url = new URL(window.location.href);
+		url.searchParams.set('show', getTourSlug(tour));
+		goto(url.toString(), { replaceState: false, noScroll: true, keepFocus: true });
 	}
 
 	function closeTour() {
-		selectedTour = null;
+		const url = new URL(window.location.href);
+		url.searchParams.delete('show');
+		goto(url.toString(), { replaceState: false, noScroll: true, keepFocus: true });
 	}
+
+	function loadMore() {
+		if (hasMore) {
+			visibleCount += 5;
+		}
+	}
+
+	onMount(() => {
+		const observer = new IntersectionObserver((entries) => {
+			if (entries[0].isIntersecting) {
+				loadMore();
+			}
+		}, { threshold: 0.1 });
+
+		if (loadMoreTrigger) observer.observe(loadMoreTrigger);
+
+		return () => observer.disconnect();
+	});
 </script>
 
 <svelte:head>
@@ -61,65 +122,73 @@
 <div class="tours-page">
 	<!-- Filter bar -->
 	<div class="tours-bar">
-		<span class="tours-bar__count">
-			{filteredTours().length} tour{filteredTours().length !== 1 ? 's' : ''}
-			{#if activeTags.length > 0}
-				<span class="tours-bar__filtered">(filtered)</span>
-			{/if}
-		</span>
-		<button
-			class="tours-bar__filter-btn"
-			class:tours-bar__filter-btn--active={filterOpen || activeTags.length > 0}
-			onclick={() => filterOpen = !filterOpen}
-			aria-label="Filter tours"
-		>
-			<span class="material-symbols-outlined">tune</span>
-			Filter
-			{#if activeTags.length > 0}
-				<span class="tours-bar__filter-count">{activeTags.length}</span>
-			{/if}
-		</button>
-	</div>
-
-	<!-- Tag filter drawer -->
-	{#if filterOpen}
-		<div class="tours-filter">
-			<div class="tours-filter__header">
-				<span class="tours-filter__label">Filter by type</span>
+		<div class="tours-bar__main">
+			<span class="tours-bar__count">
+				{filteredTours.length} tour{filteredTours.length !== 1 ? 's' : ''}
 				{#if activeTags.length > 0}
-					<button class="tours-filter__clear" onclick={clearFilters}>
-						Clear all
-					</button>
+					<span class="tours-bar__filtered">(filtered)</span>
 				{/if}
-			</div>
-			<div class="tours-filter__tags">
-				{#each allTags() as tag (tag)}
-					<button
-						class="tours-filter__tag"
-						class:tours-filter__tag--active={activeTags.includes(tag)}
-						onclick={() => toggleTag(tag)}
-					>
-						{tag}
-					</button>
-				{/each}
+			</span>
+			
+			<div class="tours-bar__actions">
+				{#if filterOpen}
+					<div class="tours-bar__tags-inline" in:fly={{ x: 30, duration: 200 }} out:fly={{ x: 10, duration: 150 }}>
+						{#each allTags as tag (tag)}
+							<button
+								class="tours-bar__tag"
+								class:tours-bar__tag--active={activeTags.includes(tag)}
+								onclick={() => toggleTag(tag)}
+							>
+								{tag}
+							</button>
+						{/each}
+					</div>
+				{/if}
+
+				<button
+					class="tours-bar__filter-btn"
+					class:tours-bar__filter-btn--active={filterOpen || activeTags.length > 0}
+					onclick={() => filterOpen = !filterOpen}
+					aria-label="Filter tours"
+				>
+					<span class="material-symbols-outlined">tune</span>
+					{#if activeTags.length === 0}
+						Filter
+					{:else}
+						<span class="tours-bar__filter-count">{activeTags.length}</span>
+						<button 
+							class="tours-bar__filter-clear" 
+							onclick={(e) => { e.stopPropagation(); clearFilters(); }}
+							aria-label="Clear filters"
+						>
+							<span class="material-symbols-outlined">close</span>
+						</button>
+					{/if}
+				</button>
 			</div>
 		</div>
-	{/if}
-
-	<!-- Timeline -->
-	<div class="tours-content">
-		<TourTimeline {groups} onselect={openTour} />
 	</div>
 
-	<!-- Sticky slide-out CTA (mobile) -->
-	{#if data.user}
-		<div class="tours-create-hint">
-			<a href={resolve('/tours/new')} class="tours-create-hint__link">
-				<span class="material-symbols-outlined">add_circle</span>
-				Create your own SUP tour!
-			</a>
-		</div>
-	{/if}
+	<!-- Timeline with embedded invitations -->
+	<div class="tours-content">
+		<TourTimeline {groups} onselect={openTour} user={data.user} />
+		
+		{#if visibleTours.length > 0}
+			<div class="tours-invitation">
+				<a href={resolve('/tours/new')} class="tours-invitation__card">
+					<span class="material-symbols-outlined">add_circle</span>
+					{getInvitation(Math.floor(visibleTours.length / 5))}
+				</a>
+			</div>
+		{/if}
+
+		<!-- Load more trigger -->
+		{#if hasMore}
+			<div bind:this={loadMoreTrigger} class="tours-loader">
+				<div class="tours-loader__spinner"></div>
+			</div>
+		{/if}
+	</div>
 
 	<!-- FAB for creating tour (desktop) -->
 	{#if data.user}
@@ -145,22 +214,47 @@
 
 	/* ---- FILTER BAR ---- */
 	.tours-bar {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		padding: 0.6rem 1rem;
+		position: sticky;
+		top: 0;
+		z-index: 100;
 		background: var(--color-surface);
 		border-bottom: var(--border-width) solid var(--color-border-light);
+		padding: 0.6rem 1rem;
+	}
+
+	.tours-bar__main {
+		display: flex;
+		flex-direction: row;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
 	}
 
 	.tours-bar__count {
+		display: none;
 		font-size: var(--font-size-sm);
 		color: var(--color-text-muted);
 		font-weight: 500;
+		flex-shrink: 0;
+	}
+
+	@media (min-width: 768px) {
+		.tours-bar__count {
+			display: block;
+		}
 	}
 
 	.tours-bar__filtered {
 		color: var(--color-primary);
+	}
+
+	.tours-bar__actions {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		gap: 0.75rem;
+		min-width: 0;
+		flex: 1;
 	}
 
 	.tours-bar__filter-btn {
@@ -177,6 +271,7 @@
 		color: var(--color-text);
 		cursor: pointer;
 		transition: background var(--transition-fast), border-color var(--transition-fast);
+		flex-shrink: 0;
 	}
 
 	.tours-bar__filter-btn .material-symbols-outlined {
@@ -196,60 +291,57 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		min-width: 1.2rem;
-		height: 1.2rem;
-		padding: 0 0.3rem;
+		min-width: 1.25rem;
+		height: 1.25rem;
+		padding: 0 0.2rem;
 		border-radius: var(--border-radius-full);
 		background: var(--color-primary);
 		color: white;
-		font-size: 0.65rem;
+		font-size: 0.75rem;
 		font-weight: 700;
 	}
 
-	/* ---- FILTER DRAWER ---- */
-	.tours-filter {
-		padding: 0.75rem 1rem;
-		background: var(--color-surface);
-		border-bottom: var(--border-width) solid var(--color-border-light);
-	}
-
-	.tours-filter__header {
+	.tours-bar__filter-clear {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 0.5rem;
-	}
-
-	.tours-filter__label {
-		font-size: var(--font-size-sm);
-		font-weight: 600;
-		color: var(--color-text);
-	}
-
-	.tours-filter__clear {
+		justify-content: center;
+		padding: 0.1rem;
+		margin-left: -0.2rem;
+		margin-right: -0.3rem;
 		background: none;
 		border: none;
-		font: inherit;
-		font-size: var(--font-size-xs);
-		font-weight: 600;
 		color: var(--color-primary);
 		cursor: pointer;
-		padding: 0.2rem 0.4rem;
-		border-radius: var(--border-radius-sm);
+		border-radius: var(--border-radius-full);
 	}
 
-	.tours-filter__clear:hover {
+	.tours-bar__filter-clear:hover {
 		background: var(--color-primary-light);
 	}
 
-	.tours-filter__tags {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 0.35rem;
+	.tours-bar__filter-clear .material-symbols-outlined {
+		font-size: 16px;
 	}
 
-	.tours-filter__tag {
-		padding: 0.3rem 0.7rem;
+	/* ---- TAGS INLINE ---- */
+	.tours-bar__tags-inline {
+		display: flex;
+		align-items: center;
+		gap: 0.4rem;
+		overflow-x: auto;
+		padding-bottom: 2px;
+		scrollbar-width: none; /* Firefox */
+		-ms-overflow-style: none; /* IE/Edge */
+		flex: 1;
+		min-width: 0;
+	}
+
+	.tours-bar__tags-inline::-webkit-scrollbar {
+		display: none; /* Chrome/Safari */
+	}
+
+	.tours-bar__tag {
+		padding: 0.3rem 0.75rem;
 		border: var(--border-width) solid var(--color-border);
 		border-radius: var(--border-radius-full);
 		background: var(--color-surface);
@@ -260,22 +352,17 @@
 		color: var(--color-text-muted);
 		cursor: pointer;
 		transition: all var(--transition-fast);
+		white-space: nowrap;
 	}
 
-	.tours-filter__tag:hover {
+	.tours-bar__tag:hover {
 		border-color: var(--color-primary);
 		color: var(--color-primary);
 	}
 
-	.tours-filter__tag--active {
+	.tours-bar__tag--active {
 		background: var(--color-primary);
 		border-color: var(--color-primary);
-		color: white;
-	}
-
-	.tours-filter__tag--active:hover {
-		background: var(--color-primary-dark);
-		border-color: var(--color-primary-dark);
 		color: white;
 	}
 
@@ -284,34 +371,57 @@
 		padding: 1.25rem 1rem 2rem;
 	}
 
-	/* ---- STICKY CTA (mobile) ---- */
-	.tours-create-hint {
-		position: sticky;
-		bottom: 5rem;
-		z-index: 20;
-		padding: 0 1rem;
-		margin-bottom: 1rem;
+	/* ---- INVITATIONS ---- */
+	.tours-invitation {
+		margin: 1.5rem 0 2rem;
+		padding-left: 2rem;
 	}
 
-	.tours-create-hint__link {
+	.tours-invitation__card {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		gap: 0.5rem;
-		padding: 0.75rem;
-		background: var(--color-surface);
+		gap: 0.75rem;
+		padding: 1.25rem;
+		background: var(--color-primary-light);
 		border: 2px dashed var(--color-primary);
 		border-radius: var(--border-radius-lg);
 		color: var(--color-primary);
-		font-size: var(--font-size-sm);
-		font-weight: 600;
+		font-size: var(--font-size-base);
+		font-weight: 700;
 		text-decoration: none;
-		transition: background var(--transition-fast);
+		transition: transform var(--transition-fast), background var(--transition-fast);
+		text-align: center;
 	}
 
-	.tours-create-hint__link:hover {
-		background: var(--color-primary-light);
+	.tours-invitation__card:hover {
+		background: #d1f2f9;
+		transform: translateY(-2px);
 		text-decoration: none;
+	}
+
+	.tours-invitation__card .material-symbols-outlined {
+		font-size: 28px;
+	}
+
+	/* ---- LOADER ---- */
+	.tours-loader {
+		display: flex;
+		justify-content: center;
+		padding: 2rem 0;
+	}
+
+	.tours-loader__spinner {
+		width: 1.5rem;
+		height: 1.5rem;
+		border: 2px solid var(--color-border);
+		border-top-color: var(--color-primary);
+		border-radius: 50%;
+		animation: spin 0.8s linear infinite;
+	}
+
+	@keyframes spin {
+		to { transform: rotate(360deg); }
 	}
 
 	/* ---- FAB (desktop) ---- */
@@ -349,10 +459,6 @@
 			padding: 0.75rem 2rem;
 		}
 
-		.tours-filter {
-			padding: 0.75rem 2rem;
-		}
-
 		.tours-content {
 			padding: 2rem 2rem 3rem;
 		}
@@ -361,8 +467,9 @@
 			display: flex;
 		}
 
-		.tours-create-hint {
-			display: none;
+		.tours-invitation {
+			padding-left: 2.5rem;
+			margin: 2.5rem 0 3rem;
 		}
 	}
 
@@ -372,3 +479,4 @@
 		}
 	}
 </style>
+

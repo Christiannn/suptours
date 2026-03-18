@@ -1,8 +1,11 @@
 <script lang="ts">
 	import type { Tour } from './dateGrouping';
 	import TourTagBadge from './TourTagBadge.svelte';
+	import { resolve } from '$app/paths';
 
-	let { tour, onclick }: { tour: Tour; onclick: () => void } = $props();
+	let { tour, onclick, user }: { tour: Tour; onclick: () => void; user: any } = $props();
+
+	const isCreator = $derived(user && tour.creator_id === user.id);
 
 	const formattedDate = $derived(() => {
 		const d = new Date(tour.start_date + 'T00:00:00');
@@ -68,11 +71,23 @@
 		{/if}
 
 		<div class="tour-card__footer">
-			<div class="tour-card__participants">
-				<span class="material-symbols-outlined tour-card__people-icon">group</span>
-				<span class="tour-card__participant-count">
-					{tour.participant_count} joined
-				</span>
+			<div class="tour-card__footer-left">
+				<div class="tour-card__participants">
+					<span class="material-symbols-outlined tour-card__people-icon">group</span>
+					<span class="tour-card__participant-count">
+						{tour.participant_count} joined
+					</span>
+				</div>
+				{#if isCreator}
+					<a 
+						href={resolve(`/tours/${tour.id}/edit`)} 
+						class="tour-card__edit-btn"
+						onclick={(e) => e.stopPropagation()}
+					>
+						<span class="material-symbols-outlined">edit</span>
+						Edit
+					</a>
+				{/if}
 			</div>
 			<span class="tour-card__join-hint" class:tour-card__join-hint--joined={tour.has_joined}>
 				{tour.has_joined ? 'Joined ✓' : 'Join'}
@@ -118,7 +133,7 @@
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
-		transition: transform 0.6s ease;
+		transition: transform 0.3s ease;
 	}
 
 	.tour-card:hover .tour-card__image {
@@ -235,6 +250,12 @@
 		border-top: var(--border-width) solid var(--color-border-light);
 	}
 
+	.tour-card__footer-left {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
 	.tour-card__participants {
 		display: flex;
 		align-items: center;
@@ -249,6 +270,30 @@
 	.tour-card__participant-count {
 		font-size: var(--font-size-xs);
 		color: var(--color-text-muted);
+	}
+
+	.tour-card__edit-btn {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		color: var(--color-primary);
+		text-decoration: none;
+		padding: 0.2rem 0.5rem;
+		border-radius: var(--border-radius-sm);
+		background: var(--color-primary-light);
+		transition: background var(--transition-fast);
+	}
+
+	.tour-card__edit-btn:hover {
+		background: var(--color-primary);
+		color: white;
+		text-decoration: none;
+	}
+
+	.tour-card__edit-btn .material-symbols-outlined {
+		font-size: 14px;
 	}
 
 	.tour-card__join-hint {

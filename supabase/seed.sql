@@ -1,6 +1,12 @@
 -- Seed data for development
 -- Run after at least one user exists, or create test users first via Supabase Auth
 
+-- Create a test user
+INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, recovery_sent_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, created_at, updated_at, confirmation_token, email_change, email_change_sent_at, phone, phone_confirmed_at, phone_change, phone_change_sent_at, email_change_token_current, email_change_confirm_status, banned_until, reauthentication_token, reauthentication_sent_at, is_sso_user, deleted_at)
+VALUES
+  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000', 'admin@suptours.dk', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Admin User"}', false, now(), now(), '', '', now(), NULL, NULL, '', now(), '', 0, NULL, '', now(), false, NULL)
+ON CONFLICT (id) DO NOTHING;
+
 -- Insert sample tours (uses the first profile as creator)
 -- If no profile exists yet, these will silently fail; re-run after first user signup.
 

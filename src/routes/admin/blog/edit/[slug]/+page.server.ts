@@ -33,7 +33,6 @@ export const load = (async (event) => {
 		.from('blog_posts')
 		.select('*')
 		.eq('slug', params.slug)
-		.eq('author_id', user.id)
 		.is('team_id', null)
 		.single();
 
@@ -91,7 +90,6 @@ export const actions = {
 			.from('blog_posts')
 			.select('id')
 			.eq('slug', params.slug)
-			.eq('author_id', user.id)
 			.is('team_id', null)
 			.single();
 
@@ -126,7 +124,6 @@ export const actions = {
 			.from('blog_posts')
 			.select('id')
 			.eq('slug', params.slug)
-			.eq('author_id', user.id)
 			.is('team_id', null)
 			.single();
 

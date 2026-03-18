@@ -230,8 +230,31 @@
 
 	@media (max-width: 767px) {
 		.gallery-slider {
-			--slide-width: 84%;
+			--slide-width: 92%;
 			--slide-gap: 0.65rem;
+		}
+
+		.slider-shell {
+			display: block; /* Remove grid on mobile to allow absolute positioning of buttons */
+		}
+
+		.nav-button {
+			position: absolute;
+			top: 50%;
+			transform: translateY(-50%);
+			z-index: 10;
+			background: white;
+			border: none;
+			box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+			opacity: 1; /* Not transparent */
+		}
+
+		.nav-button.left {
+			left: 0.5rem;
+		}
+
+		.nav-button.right {
+			right: 0.5rem;
 		}
 	}
 </style>

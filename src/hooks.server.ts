@@ -3,7 +3,7 @@ import {
     PUBLIC_SUPABASE_URL,
 } from "$env/static/public";
 import { createServerClient } from "@supabase/ssr";
-import type { Handle } from "@sveltejs/kit";
+import { error, redirect, type Handle } from "@sveltejs/kit";
 
 export const handle: Handle = async ({ event, resolve }) => {
 
@@ -50,6 +50,24 @@ export const handle: Handle = async ({ event, resolve }) => {
             user
         };
     };
+
+    // ADMIN PROTECTION
+    if (event.url.pathname.startsWith('/admin')) {
+        const { user } = await event.locals.safeGetSession();
+        if (!user) {
+            throw redirect(303, '/login?next=' + event.url.pathname);
+        }
+
+        const { data: profile } = await event.locals.supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', user.id)
+            .single();
+
+        if (!profile?.is_admin) {
+            throw error(403, 'Forbidden: Admin access required');
+        }
+    }
 
     return resolve(event, {
         filterSerializedResponseHeaders(name) {

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { onMount } from 'svelte';
 	import type { Tour } from './dateGrouping';
 	import TourTagBadge from './TourTagBadge.svelte';
 
@@ -12,6 +13,10 @@
 		user: { id: string } | null;
 		onclose: () => void;
 	} = $props();
+
+	onMount(() => {
+		// Modal mounted
+	});
 
 	const formattedStartDate = $derived(() => {
 		const d = new Date(tour.start_date + 'T00:00:00');
@@ -196,42 +201,52 @@
 	.modal-backdrop {
 		position: fixed;
 		inset: 0;
-		background: rgba(0, 0, 0, 0.5);
+		background: var(--color-surface);
 		z-index: 200;
 		display: flex;
 		justify-content: center;
-		align-items: flex-end;
+		align-items: flex-start;
 		padding: 0;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 
 	.modal {
 		background: var(--color-surface);
 		width: 100%;
-		max-width: 32rem;
-		max-height: 95vh;
-		border-radius: var(--border-radius-xl) var(--border-radius-xl) 0 0;
-		overflow-y: auto;
+		min-height: 100vh;
 		display: flex;
 		flex-direction: column;
+		position: relative;
 	}
 
 	@media (min-width: 768px) {
 		.modal-backdrop {
-			align-items: center;
-			padding: 2rem;
+			background: rgba(246, 248, 248, 0.9);
+			backdrop-filter: blur(12px);
+			padding: 4rem 1.5rem;
 		}
 		.modal {
+			min-height: auto;
 			border-radius: var(--border-radius-xl);
-			max-height: 90vh;
+			max-width: 44rem;
+			box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+			margin-bottom: 4rem;
 		}
 	}
 
 	/* Hero */
 	.modal__hero {
 		position: relative;
-		height: 14rem;
+		height: 16rem;
 		overflow: hidden;
 		flex-shrink: 0;
+	}
+
+	@media (min-width: 768px) {
+		.modal__hero {
+			height: 22rem;
+		}
 	}
 
 	.modal__hero-img {
@@ -302,9 +317,7 @@
 
 	/* Body */
 	.modal__body {
-		flex: 1;
 		padding: 1.25rem;
-		overflow-y: auto;
 	}
 
 	.modal__section {

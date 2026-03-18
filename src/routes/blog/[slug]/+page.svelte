@@ -22,7 +22,7 @@
 			by {data.post.profiles.display_name ?? data.post.profiles.name ?? 'Unknown'}
 		{/if}
 		{#if data.canEdit}
-			<a class="edit-link" href={resolve('/blog/edit/[slug]', { slug: data.post.slug })}>Edit</a>
+			<a class="edit-link" href={resolve('/admin/blog/edit/[slug]', { slug: data.post.slug })}>Edit</a>
 		{/if}
 	</p>
 	<div class="content">

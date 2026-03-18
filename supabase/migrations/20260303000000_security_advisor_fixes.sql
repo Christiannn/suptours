@@ -80,12 +80,7 @@ DROP POLICY IF EXISTS "Anyone can subscribe" ON public.newsletter_subscribers;
 CREATE POLICY "Anyone can subscribe" ON public.newsletter_subscribers
   FOR INSERT
   WITH CHECK (
-    team_id IS NULL
-    AND email IS NOT NULL
+    email IS NOT NULL
     AND length(trim(email)) > 3
     AND position('@' in email) > 1
-    AND (
-      (auth.uid() IS NULL AND user_id IS NULL)
-      OR (auth.uid() IS NOT NULL AND user_id = auth.uid())
-    )
   );
