@@ -63,6 +63,7 @@ export const actions = {
 			.single();
 
 		if (error) {
+			console.error('[tours/create] Supabase error:', error);
 			return fail(500, { message: error.message });
 		}
 

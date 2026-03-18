@@ -4,6 +4,8 @@
 
 	let { data } = $props();
 
+	let joining = $state(false);
+
 	const tour = $derived(data.tour);
 
 	const formattedStartDate = $derived(() => {
@@ -137,9 +139,21 @@
 		<!-- Join action -->
 		<div class="tour-detail__action">
 			{#if data.user}
-				<form method="POST" action="?/{tour.has_joined ? 'leave' : 'join'}" use:enhance>
-					<button type="submit" class="tour-detail__join-btn" class:tour-detail__join-btn--joined={tour.has_joined}>
-						{#if tour.has_joined}
+				<form method="POST" action="?/{tour.has_joined ? 'leave' : 'join'}" use:enhance={() => {
+					joining = true;
+					return async ({ result, update }) => {
+						joining = false;
+						if (result.type === 'failure') {
+							console.error('[TourDetail] Join/Leave error:', result.data?.message, result);
+						}
+						await update();
+					};
+				}}>
+					<button type="submit" class="tour-detail__join-btn" class:tour-detail__join-btn--joined={tour.has_joined} disabled={joining}>
+						{#if joining}
+							<span class="tour-detail__spinner"></span>
+							{tour.has_joined ? 'Leaving...' : 'Joining...'}
+						{:else if tour.has_joined}
 							<span class="material-symbols-outlined">check_circle</span>
 							You're in! (Leave)
 						{:else}
@@ -354,6 +368,21 @@
 	}
 
 	.tour-detail__action form { margin: 0; }
+
+	.tour-detail__spinner {
+		display: inline-block;
+		width: 1rem;
+		height: 1rem;
+		border: 2px solid currentColor;
+		border-top-color: transparent;
+		border-radius: 50%;
+		animation: detail-spin 0.7s linear infinite;
+		flex-shrink: 0;
+	}
+
+	@keyframes detail-spin {
+		to { transform: rotate(360deg); }
+	}
 
 	.tour-detail__join-btn {
 		display: flex;

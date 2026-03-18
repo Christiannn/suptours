@@ -88,6 +88,115 @@ export type Database = {
           },
         ]
       }
+      community_subjects: {
+        Row: {
+          id: string
+          title: string
+          body: string
+          author_id: string
+          tags: string[]
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          body: string
+          author_id: string
+          tags?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          body?: string
+          author_id?: string
+          tags?: string[]
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_subjects_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subject_comments: {
+        Row: {
+          id: string
+          subject_id: string
+          author_id: string
+          body: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          subject_id: string
+          author_id: string
+          body: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          subject_id?: string
+          author_id?: string
+          body?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subject_comments_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "community_subjects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subject_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      community_flags: {
+        Row: {
+          id: string
+          target_type: string
+          target_id: string
+          reporter_id: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          target_type: string
+          target_id: string
+          reporter_id: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          target_type?: string
+          target_id?: string
+          reporter_id?: string
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_flags_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       galleries: {
         Row: {
           active: boolean

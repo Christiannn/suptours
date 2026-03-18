@@ -36,6 +36,9 @@
 	// Image upload state
 	let uploading = $state(false);
 	let uploadError = $state<string | null>(null);
+
+	// Form submit state
+	let submitting = $state(false);
 	const supabase = createSupabaseBrowserClient();
 
 	const availableTags = [
@@ -132,7 +135,16 @@
 		</div>
 	</div>
 
-	<form method="POST" {action} use:enhance class="wizard__form">
+	<form method="POST" {action} use:enhance={() => {
+		submitting = true;
+		return async ({ result, update }) => {
+			submitting = false;
+			if (result.type === 'failure') {
+				console.error('[TourForm] Submit error:', result.data?.message, result);
+			}
+			await update();
+		};
+	}} class="wizard__form">
 		<!-- Hidden fields for all data -->
 		<input type="hidden" name="title" value={title} />
 		<input type="hidden" name="description" value={description} />
@@ -434,12 +446,22 @@
 				</button>
 			{:else}
 				<div class="wizard__submit-group">
-					<button type="submit" name="action" value="draft" class="wizard__btn wizard__btn--draft" disabled={uploading}>
-						Save Draft
+					<button type="submit" name="action" value="draft" class="wizard__btn wizard__btn--draft" disabled={uploading || submitting}>
+						{#if submitting}
+							<span class="wizard__spinner"></span>
+							Saving...
+						{:else}
+							Save Draft
+						{/if}
 					</button>
-					<button type="submit" name="action" value="publish" class="wizard__btn wizard__btn--publish" disabled={uploading}>
-						<span class="material-symbols-outlined">rocket_launch</span>
-						{tour ? 'Update Tour' : 'Publish!'}
+					<button type="submit" name="action" value="publish" class="wizard__btn wizard__btn--publish" disabled={uploading || submitting}>
+						{#if submitting}
+							<span class="wizard__spinner"></span>
+							{tour ? 'Updating...' : 'Publishing...'}
+						{:else}
+							<span class="material-symbols-outlined">rocket_launch</span>
+							{tour ? 'Update Tour' : 'Publish!'}
+						{/if}
 					</button>
 				</div>
 			{/if}
@@ -679,6 +701,21 @@
 	.wizard__btn:disabled {
 		opacity: 0.4;
 		cursor: not-allowed;
+	}
+
+	.wizard__spinner {
+		display: inline-block;
+		width: 0.9rem;
+		height: 0.9rem;
+		border: 2px solid currentColor;
+		border-top-color: transparent;
+		border-radius: 50%;
+		animation: wizard-spin 0.7s linear infinite;
+		flex-shrink: 0;
+	}
+
+	@keyframes wizard-spin {
+		to { transform: rotate(360deg); }
 	}
 
 	.wizard__btn--back {
