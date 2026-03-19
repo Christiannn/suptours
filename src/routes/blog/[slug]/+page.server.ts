@@ -22,6 +22,8 @@ export const load = (async ({ params, locals: { supabase, safeGetSession } }) =>
 		? await supabase.from('profiles').select('is_admin').eq('id', user.id).single()
 		: { data: null };
 
+	const content_blocks = await formatBlogMarkdown(post.content_md);
+
 	return {
 		post: { ...post, content_blocks },
 		user,

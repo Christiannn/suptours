@@ -20,7 +20,6 @@ export const load = (async ({ params, locals: { supabase, safeGetSession } }) =>
 	}
 
 	// Increment view count (fire and forget)
-	supabase.rpc('', {}).catch(() => {}); // placeholder — we do a raw update
 	await supabase
 		.from('tours')
 		.update({ view_count: tour.view_count + 1 })

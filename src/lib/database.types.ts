@@ -329,6 +329,7 @@ export type Database = {
           country: string | null
           display_name: string | null
           id: string
+          is_admin: boolean
           name: string | null
           updated_at: string | null
         }
