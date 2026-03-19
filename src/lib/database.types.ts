@@ -329,6 +329,7 @@ export type Database = {
           country: string | null
           display_name: string | null
           id: string
+          is_admin: boolean
           name: string | null
           updated_at: string | null
         }
@@ -338,6 +339,7 @@ export type Database = {
           country?: string | null
           display_name?: string | null
           id: string
+          is_admin?: boolean
           name?: string | null
           updated_at?: string | null
         }
@@ -347,6 +349,7 @@ export type Database = {
           country?: string | null
           display_name?: string | null
           id?: string
+          is_admin?: boolean
           name?: string | null
           updated_at?: string | null
         }
@@ -678,6 +681,84 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      scraper_sources: {
+        Row: {
+          id: string
+          url: string
+          domain: string
+          title: string | null
+          description: string | null
+          is_active: boolean
+          notes: string | null
+          scrape_count: number
+          last_searched_at: string | null
+          last_scraped_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          url: string
+          domain: string
+          title?: string | null
+          description?: string | null
+          is_active?: boolean
+          notes?: string | null
+          scrape_count?: number
+          last_searched_at?: string | null
+          last_scraped_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          url?: string
+          domain?: string
+          title?: string | null
+          description?: string | null
+          is_active?: boolean
+          notes?: string | null
+          scrape_count?: number
+          last_searched_at?: string | null
+          last_scraped_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      scraper_runs: {
+        Row: {
+          id: string
+          run_type: string
+          status: string
+          sources_found: number
+          events_created: number
+          error_message: string | null
+          started_at: string
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          run_type: string
+          status?: string
+          sources_found?: number
+          events_created?: number
+          error_message?: string | null
+          started_at?: string
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          run_type?: string
+          status?: string
+          sources_found?: number
+          events_created?: number
+          error_message?: string | null
+          started_at?: string
+          completed_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
