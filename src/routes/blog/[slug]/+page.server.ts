@@ -18,6 +18,8 @@ export const load = (async ({ params, locals: { supabase, safeGetSession } }) =>
 		error(404, 'Post not found');
 	}
 
+	const content_blocks = await formatBlogMarkdown(post.content_md);
+
 	const { data: profile } = user
 		? await supabase.from('profiles').select('is_admin').eq('id', user.id).single()
 		: { data: null };
