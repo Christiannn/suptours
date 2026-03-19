@@ -145,26 +145,32 @@
 					</div>
 				{/if}
 
-				<button
-					class="tours-bar__filter-btn"
-					class:tours-bar__filter-btn--active={filterOpen || activeTags.length > 0}
-					onclick={() => filterOpen = !filterOpen}
-					aria-label="Filter tours"
-				>
-					<span class="material-symbols-outlined">tune</span>
-					{#if activeTags.length === 0}
-						Filter
-					{:else}
-						<span class="tours-bar__filter-count">{activeTags.length}</span>
-						<button 
-							class="tours-bar__filter-clear" 
-							onclick={(e) => { e.stopPropagation(); clearFilters(); }}
+				<div class="tours-bar__filter-group">
+					<button
+						type="button"
+						class="tours-bar__filter-btn"
+						class:tours-bar__filter-btn--active={filterOpen || activeTags.length > 0}
+						onclick={() => filterOpen = !filterOpen}
+						aria-label="Filter tours"
+					>
+						<span class="material-symbols-outlined">tune</span>
+						{#if activeTags.length === 0}
+							Filter
+						{:else}
+							<span class="tours-bar__filter-count">{activeTags.length}</span>
+						{/if}
+					</button>
+					{#if activeTags.length > 0}
+						<button
+							type="button"
+							class="tours-bar__filter-clear"
+							onclick={clearFilters}
 							aria-label="Clear filters"
 						>
 							<span class="material-symbols-outlined">close</span>
 						</button>
 					{/if}
-				</button>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -255,6 +261,13 @@
 		gap: 0.75rem;
 		min-width: 0;
 		flex: 1;
+	}
+
+	.tours-bar__filter-group {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.15rem;
+		flex-shrink: 0;
 	}
 
 	.tours-bar__filter-btn {
