@@ -134,7 +134,7 @@
 				<div class="modal__detail">
 					<span class="material-symbols-outlined">child_care</span>
 					<div>
-						<strong>{tour.age_min}–{tour.age_max} years</strong>
+						<strong>{tour.age_min ?? '—'}–{tour.age_max ?? '—'} years</strong>
 						<span>Age range</span>
 					</div>
 				</div>

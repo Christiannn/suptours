@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import { page } from '$app/state';
 	import TourTagBadge from '$lib/tours/TourTagBadge.svelte';
+	import { buildTourDetailPageJsonLd, safeJsonLdStringify } from '$lib/tours/schemaOrg';
 
 	let { data } = $props();
 
@@ -22,11 +24,16 @@
 	const imageUrl = $derived(
 		tour.image_url || placeholderImages[Math.abs(tour.title.length) % placeholderImages.length]
 	);
+
+	const tourJsonLdString = $derived.by(() =>
+		safeJsonLdStringify(buildTourDetailPageJsonLd(page.url.origin, tour)),
+	);
 </script>
 
 <svelte:head>
 	<title>{tour.title} — SUP Tours</title>
 	<meta name="description" content={tour.description ?? `${tour.title} at ${tour.locality ?? 'TBD'}`} />
+	{@html `<script type="application/ld+json">${tourJsonLdString}</script>`}
 </svelte:head>
 
 <div class="tour-detail">
@@ -87,7 +94,7 @@
 			</div>
 			<div class="tour-detail__stat">
 				<span class="material-symbols-outlined">child_care</span>
-				<strong>{tour.age_min}–{tour.age_max}</strong>
+				<strong>{tour.age_min ?? '—'}–{tour.age_max ?? '—'}</strong>
 				<span>Age range</span>
 			</div>
 			<div class="tour-detail__stat">

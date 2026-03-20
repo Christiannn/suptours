@@ -26,8 +26,8 @@
 	let locality = $state(tour?.locality ?? '');
 	let parkingInfo = $state(tour?.parking_info ?? '');
 	let maxParticipants = $state(tour?.max_participants?.toString() ?? '');
-	let ageMin = $state(tour?.age_min.toString() ?? '0');
-	let ageMax = $state(tour?.age_max.toString() ?? '120');
+	let ageMin = $state(tour?.age_min?.toString() ?? '0');
+	let ageMax = $state(tour?.age_max?.toString() ?? '120');
 	let securityNotes = $state(tour?.security_notes ?? '');
 	let responsiblePerson = $state(tour?.responsible_person ?? '');
 	let contactInfo = $state(tour?.contact_info ?? '');
