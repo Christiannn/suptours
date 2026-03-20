@@ -23,14 +23,14 @@ export interface Tour {
 	contact_info: string | null;
 	security_notes: string | null;
 	parking_info: string | null;
-	age_min: number;
-	age_max: number;
+	age_min: number | null;
+	age_max: number | null;
 	featured: boolean;
 	view_count: number;
 	external_url: string | null;
-	created_at: string;
-	participant_count: number;
-	has_joined: boolean;
+	created_at: string | null;
+	participant_count?: number;
+	has_joined?: boolean;
 	creator_name?: string | null;
 	creator_avatar?: string | null;
 }

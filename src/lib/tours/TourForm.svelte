@@ -16,22 +16,43 @@
 	let step = $state(1);
 	const totalSteps = 5;
 
-	// Form state initialized from tour if editing
-	let title = $state(tour?.title ?? '');
-	let description = $state(tour?.description ?? '');
-	let selectedTags = $state<string[]>(tour?.tags ?? []);
-	let startDate = $state(tour?.start_date ?? '');
-	let startTime = $state(tour?.start_time ?? '');
-	let endDate = $state(tour?.end_date ?? '');
-	let locality = $state(tour?.locality ?? '');
-	let parkingInfo = $state(tour?.parking_info ?? '');
-	let maxParticipants = $state(tour?.max_participants?.toString() ?? '');
-	let ageMin = $state(tour?.age_min.toString() ?? '0');
-	let ageMax = $state(tour?.age_max.toString() ?? '120');
-	let securityNotes = $state(tour?.security_notes ?? '');
-	let responsiblePerson = $state(tour?.responsible_person ?? '');
-	let contactInfo = $state(tour?.contact_info ?? '');
-	let imageUrl = $state(tour?.image_url ?? '');
+	let title = $state('');
+	let description = $state('');
+	let selectedTags = $state<string[]>([]);
+	let startDate = $state('');
+	let startTime = $state('');
+	let endDate = $state('');
+	let locality = $state('');
+	let parkingInfo = $state('');
+	let maxParticipants = $state('');
+	let ageMin = $state('0');
+	let ageMax = $state('120');
+	let securityNotes = $state('');
+	let responsiblePerson = $state('');
+	let contactInfo = $state('');
+	let imageUrl = $state('');
+
+	let syncedTourKey = $state<string | null>(null);
+	$effect.pre(() => {
+		const key = tour?.id ?? 'new';
+		if (syncedTourKey === key) return;
+		syncedTourKey = key;
+		title = tour?.title ?? '';
+		description = tour?.description ?? '';
+		selectedTags = [...(tour?.tags ?? [])];
+		startDate = tour?.start_date ?? '';
+		startTime = tour?.start_time ?? '';
+		endDate = tour?.end_date ?? '';
+		locality = tour?.locality ?? '';
+		parkingInfo = tour?.parking_info ?? '';
+		maxParticipants = tour?.max_participants?.toString() ?? '';
+		ageMin = tour?.age_min?.toString() ?? '0';
+		ageMax = tour?.age_max?.toString() ?? '120';
+		securityNotes = tour?.security_notes ?? '';
+		responsiblePerson = tour?.responsible_person ?? '';
+		contactInfo = tour?.contact_info ?? '';
+		imageUrl = tour?.image_url ?? '';
+	});
 
 	// Image upload state
 	let uploading = $state(false);
@@ -188,19 +209,21 @@
 					rows="4"
 				></textarea>
 
-				<label class="wizard__label">Tour type tags</label>
-				<div class="wizard__tags">
-					{#each availableTags as tag (tag)}
-						<button
-							type="button"
-							class="wizard__tag"
-							class:wizard__tag--selected={selectedTags.includes(tag)}
-							onclick={() => toggleTag(tag)}
-						>
-							{tag}
-						</button>
-					{/each}
-				</div>
+				<fieldset class="wizard__tag-group">
+					<legend class="wizard__label">Tour type tags</legend>
+					<div class="wizard__tags">
+						{#each availableTags as tag (tag)}
+							<button
+								type="button"
+								class="wizard__tag"
+								class:wizard__tag--selected={selectedTags.includes(tag)}
+								onclick={() => toggleTag(tag)}
+							>
+								{tag}
+							</button>
+						{/each}
+					</div>
+				</fieldset>
 
 				<label class="wizard__label" for="image_file">Tour Image</label>
 				<div class="wizard__image-upload">
@@ -624,6 +647,17 @@
 	}
 
 	/* Tags */
+	.wizard__tag-group {
+		border: none;
+		margin: 1rem 0 0;
+		padding: 0;
+		min-width: 0;
+	}
+
+	.wizard__tag-group .wizard__label {
+		margin-top: 0;
+	}
+
 	.wizard__tags {
 		display: flex;
 		flex-wrap: wrap;

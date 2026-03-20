@@ -111,26 +111,32 @@
 					</div>
 				{/if}
 
-				<button
-					class="comm-bar__filter-btn"
-					class:comm-bar__filter-btn--active={filterOpen || activeTags.length > 0}
-					onclick={() => filterOpen = !filterOpen}
-					aria-label="Filter subjects"
-				>
-					<span class="material-symbols-outlined">tune</span>
-					{#if activeTags.length === 0}
-						Filter
-					{:else}
-						<span class="comm-bar__filter-count">{activeTags.length}</span>
+				<div class="comm-bar__filter-group">
+					<button
+						type="button"
+						class="comm-bar__filter-btn"
+						class:comm-bar__filter-btn--active={filterOpen || activeTags.length > 0}
+						onclick={() => filterOpen = !filterOpen}
+						aria-label="Filter subjects"
+					>
+						<span class="material-symbols-outlined">tune</span>
+						{#if activeTags.length === 0}
+							Filter
+						{:else}
+							<span class="comm-bar__filter-count">{activeTags.length}</span>
+						{/if}
+					</button>
+					{#if activeTags.length > 0}
 						<button
+							type="button"
 							class="comm-bar__filter-clear"
-							onclick={(e) => { e.stopPropagation(); clearFilters(); }}
+							onclick={clearFilters}
 							aria-label="Clear filters"
 						>
 							<span class="material-symbols-outlined">close</span>
 						</button>
 					{/if}
-				</button>
+				</div>
 
 				<button class="btn-new" onclick={() => showForm = !showForm}>
 					<span class="material-symbols-outlined">add</span>
@@ -180,8 +186,8 @@
 					></textarea>
 				</div>
 
-				<div class="form-field">
-					<label>Tags <span class="form-field__hint">(optional)</span></label>
+				<fieldset class="form-field">
+					<legend>Tags <span class="form-field__hint">(optional)</span></legend>
 					<div class="tag-picker">
 						{#each COMMUNITY_TAGS as tag (tag)}
 							<button
@@ -194,7 +200,7 @@
 							</button>
 						{/each}
 					</div>
-				</div>
+				</fieldset>
 
 				{#if form?.error}
 					<p class="form-error">{form.error}</p>
@@ -299,6 +305,13 @@
 		justify-content: flex-end;
 		gap: 0.75rem;
 		flex: 1;
+	}
+
+	.comm-bar__filter-group {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.15rem;
+		flex-shrink: 0;
 	}
 
 	.comm-bar__filter-btn {
@@ -430,9 +443,17 @@
 		margin-bottom: 1rem;
 	}
 
-	.form-field label {
+	.form-field label,
+	.form-field legend {
 		font-size: var(--font-size-sm);
 		font-weight: 600;
+	}
+
+	fieldset.form-field {
+		border: none;
+		margin: 0;
+		padding: 0;
+		min-width: 0;
 	}
 
 	.form-field__hint {
@@ -590,6 +611,7 @@
 		line-height: 1.5;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
+		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}

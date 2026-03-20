@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import GallarySlider from '$lib/Shared/GallarySlider.svelte';
+	import { getTourShowSlug } from '$lib/tours/tourShowSlug';
 
 	let { data, form } = $props();
 </script>
@@ -44,7 +45,10 @@
 			</div>
 			<div class="featured-tours">
 				{#each data.featuredTours as tour (tour.id)}
-					<a href={resolve('/tours/[id]', { id: tour.id })} class="featured-tour-card">
+					<a
+						href="{resolve('/tours')}?show={encodeURIComponent(getTourShowSlug(tour))}"
+						class="featured-tour-card"
+					>
 						<div class="featured-tour-card__image-wrap">
 							<img
 								src={tour.image_url || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=400&q=80'}
@@ -81,9 +85,14 @@
 			<div class="reviews-grid">
 				{#each data.recentReviews as review (review.id)}
 					<div class="review-card">
+						{#if review.image_url}
+							<div class="review-card__photo">
+								<img src={review.image_url} alt="" loading="lazy" />
+							</div>
+						{/if}
 						<div class="review-card__stars">
 							{#each Array(5) as _, i}
-								<span class="material-symbols-outlined review-star" class:review-star--filled={i < review.rating}>
+								<span class="material-symbols-outlined review-star" class:review-star--filled={i < review.rating_display}>
 									star
 								</span>
 							{/each}
@@ -393,6 +402,20 @@
 		padding: 1.25rem;
 		border-radius: var(--border-radius-lg);
 		box-shadow: var(--shadow-sm);
+		overflow: hidden;
+	}
+
+	.review-card__photo {
+		margin: -1.25rem -1.25rem 0.75rem;
+		aspect-ratio: 16 / 10;
+		background: var(--color-bg-muted);
+	}
+
+	.review-card__photo img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		display: block;
 	}
 
 	.review-card__stars {
