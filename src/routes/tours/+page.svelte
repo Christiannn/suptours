@@ -7,6 +7,7 @@
 	import TourTimeline from '$lib/tours/TourTimeline.svelte';
 	import TourModal from '$lib/tours/TourModal.svelte';
 	import { groupToursByDate, type Tour } from '$lib/tours/dateGrouping';
+	import { getTourShowSlug } from '$lib/tours/tourShowSlug';
 
 	let { data } = $props();
 
@@ -24,22 +25,11 @@
 		"Want company on the water? Create a tour!"
 	];
 
-	// Helper to create a URL-friendly slug
-	function slugify(text: string) {
-		return text.toLowerCase()
-			.replace(/[^\w ]+/g, '')
-			.replace(/ +/g, '-');
-	}
-
-	function getTourSlug(tour: Tour) {
-		return `${slugify(tour.title)}-${tour.start_date}`;
-	}
-
 	// Source of truth is now the URL. selectedTour is derived from it.
 	const selectedTour = $derived.by(() => {
 		const showParam = page.url.searchParams.get('show');
 		if (!showParam) return null;
-		return data.tours.find(t => getTourSlug(t) === showParam) ?? null;
+		return data.tours.find((t) => getTourShowSlug(t) === showParam) ?? null;
 	});
 
 	// Get a stable set of random indices for invitations based on tour count
@@ -86,7 +76,7 @@
 
 	function openTour(tour: Tour) {
 		const url = new URL(window.location.href);
-		url.searchParams.set('show', getTourSlug(tour));
+		url.searchParams.set('show', getTourShowSlug(tour));
 		goto(url.toString(), { replaceState: false, noScroll: true, keepFocus: true });
 	}
 

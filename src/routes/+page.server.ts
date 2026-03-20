@@ -1,3 +1,4 @@
+import { reviewAverageRounded } from '$lib/tours/reviewHelpers';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load = (async ({ locals: { supabase } }) => {
@@ -41,11 +42,15 @@ export const load = (async ({ locals: { supabase } }) => {
 		.order('start_date', { ascending: true })
 		.limit(4);
 
-	// Fetch recent approved reviews
+	// Fetch recent approved reviews (multi-axis; show average on cards)
 	const { data: recentReviews } = await supabase
 		.from('tour_reviews')
-		.select('id, rating, comment, created_at, tour_id, user_id')
+		.select(
+			'id, rating_nature, rating_access, rating_hosts, comment, image_url, created_at, tour_id, user_id, declined, visibility'
+		)
 		.eq('approved', true)
+		.eq('declined', false)
+		.eq('visibility', 2)
 		.order('created_at', { ascending: false })
 		.limit(3);
 
@@ -64,10 +69,23 @@ export const load = (async ({ locals: { supabase } }) => {
 		}
 	}
 
-	const enrichedReviews = (recentReviews ?? []).map(r => ({
-		...r,
-		reviewer_name: reviewerProfiles[r.user_id] ?? 'Anonymous'
-	}));
+	const enrichedReviews = (recentReviews ?? [])
+		.filter(
+			(r) =>
+				r.visibility === 2 &&
+				r.rating_nature != null &&
+				r.rating_access != null &&
+				r.rating_hosts != null
+		)
+		.map((r) => ({
+			...r,
+			reviewer_name: reviewerProfiles[r.user_id] ?? 'Anonymous',
+			rating_display: reviewAverageRounded(
+				r.rating_nature!,
+				r.rating_access!,
+				r.rating_hosts!
+			)
+		}));
 
 	const mockGalleryImages = [
 		{

@@ -62,7 +62,7 @@
 
 <style>
 	.profile-page {
-		max-width: 40rem;
+		max-width: 44rem;
 		padding: var(--section-padding);
 	}
 

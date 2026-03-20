@@ -15,15 +15,23 @@ Find - Share - Plan - Participate - and Talk alot about SUP tours and adventures
    npx supabase start
    ```
 
-2. **Developing** 
-Edit/generate migration files in `supabase/migrations/`, then:
+2. **Environment** — copy `.env.example` to `.env` and set:
+   - `PUBLIC_SUPABASE_URL` / `PUBLIC_SUPABASE_ANON_KEY` (from `npx supabase status`)
+   - `SUPABASE_SERVICE_ROLE_KEY` — the **Secret** (service_role JWT). Required for `npm run reset`: it creates dev auth users via the Admin API (`scripts/seed-dev-test-user.mjs`), then loads `supabase/seed-data.sql`.
+
+3. **Developing**  
+   Edit/generate migration files in `supabase/migrations/`, then:
 
    ```bash
-   npm run reset    # Apply migrations + regenerate types
+   npm run reset    # db reset + dev users + tour/blog seed + types
    npm run dev      # Run the app
    ```
 
-3. **Create migrations** – After schema changes in Studio (local) or SQL locally:
+   **Local-only logins** (after `npm run reset`): `admin@suptours.dk` / `password`, `test@suptour.dk` / `Husk1234`.
+
+   If you only run `npx supabase db reset`, run `npm run seed:dev-user` then `npm run seed:dev-data` (or run `npm run reset` instead).
+
+4. **Create migrations** – After schema changes in Studio (local) or SQL locally:
    ```bash
    npx supabase migration new my_change
    # Edit the new file, then: npm run reset

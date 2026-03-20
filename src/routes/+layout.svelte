@@ -9,8 +9,29 @@
 	let { data, children } = $props();
 
 	let mobileMenuOpen = $state(false);
+	let userMenuOpen = $state(false);
+	let userMenuEl: HTMLDivElement | undefined = $state();
 
 	const pathname = $derived(page.url.pathname);
+
+	$effect(() => {
+		void pathname;
+		userMenuOpen = false;
+	});
+
+	$effect(() => {
+		if (!userMenuOpen || typeof document === 'undefined') return;
+		const onDocClick = (e: MouseEvent) => {
+			if (userMenuEl && !userMenuEl.contains(e.target as Node)) {
+				userMenuOpen = false;
+			}
+		};
+		const t = window.setTimeout(() => document.addEventListener('click', onDocClick), 0);
+		return () => {
+			window.clearTimeout(t);
+			document.removeEventListener('click', onDocClick);
+		};
+	});
 	const segments = $derived(pathname.split('/').filter(Boolean));
 	const activeSection = $derived(
 		segments[0] === 'tours'
@@ -40,6 +61,12 @@
 	<meta name="description" content="Plan, find, share, and join Stand Up Paddle tours across Denmark and beyond." />
 </svelte:head>
 
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'Escape' && userMenuOpen) userMenuOpen = false;
+	}}
+/>
+
 <div id="app" class="app">
 	<!-- Desktop Header -->
 	<header class="header">
@@ -55,23 +82,38 @@
 			<a href={resolve('/marketplace')} class="nav-link" class:active={activeSection === 'marketplace'}>Market</a>
 			<a href={resolve('/blog')} class="nav-link" class:active={activeSection === 'blog'}>Blog</a>
 			{#if data.user}
-				<details class="profile-menu">
-					<summary class="nav-link" class:active={activeSection === 'profile'}>
+				<div class="user-menu" bind:this={userMenuEl}>
+					<button
+						type="button"
+						class="nav-link user-menu__trigger"
+						class:active={activeSection === 'profile'}
+						aria-expanded={userMenuOpen}
+						aria-haspopup="true"
+						onclick={(e) => {
+							e.stopPropagation();
+							userMenuOpen = !userMenuOpen;
+						}}
+					>
 						<span class="material-symbols-outlined" style="font-size:20px;vertical-align:middle">account_circle</span>
 						{displayName}
-					</summary>
-					<div class="profile-menu-list">
-						<a href={resolve('/profile')}>Profile</a>
-						<a href={resolve('/team')}>Team manager</a>
-						{#if data.isAdmin}
-							<a href={resolve('/admin')}>Admin</a>
-						{/if}
-						<hr />
-						<form method="POST" action={resolve('/logout')} class="dropdown-logout-form">
-							<button type="submit">Log out</button>
-						</form>
-					</div>
-				</details>
+					</button>
+					{#if userMenuOpen}
+						<div class="user-menu__panel" role="menu">
+							<a href={resolve('/profile')} role="menuitem" onclick={() => (userMenuOpen = false)}>Profile</a>
+							<a href={resolve('/profile/reviews')} role="menuitem" onclick={() => (userMenuOpen = false)}>
+								My reviews
+							</a>
+							<a href={resolve('/team')} role="menuitem" onclick={() => (userMenuOpen = false)}>Team manager</a>
+							{#if data.isAdmin}
+								<a href={resolve('/admin')} role="menuitem" onclick={() => (userMenuOpen = false)}>Admin</a>
+							{/if}
+							<hr />
+							<form method="POST" action={resolve('/logout')} class="dropdown-logout-form">
+								<button type="submit">Log out</button>
+							</form>
+						</div>
+					{/if}
+				</div>
 			{:else}
 				<a href={resolve('/login')} class="nav-link">Log in</a>
 				<a href={resolve('/signup')} class="btn-primary-sm">Sign up</a>
@@ -97,6 +139,8 @@
 			<hr />
 			{#if data.user}
 				<a href={resolve('/profile')} onclick={() => mobileMenuOpen = false}>Profile</a>
+				<a href={resolve('/profile/reviews')} onclick={() => mobileMenuOpen = false}>My reviews</a>
+				<a href={resolve('/team')} onclick={() => mobileMenuOpen = false}>Team manager</a>
 				{#if data.isAdmin}
 					<a href={resolve('/admin')} onclick={() => mobileMenuOpen = false}>Admin</a>
 				{/if}
@@ -246,19 +290,22 @@
 		text-decoration: none;
 	}
 
-	/* Profile dropdown */
-	.profile-menu {
+	/* Header user dropdown */
+	.user-menu {
 		position: relative;
 	}
 
-	.profile-menu summary {
-		list-style: none;
+	.user-menu__trigger {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		border: none;
+		background: transparent;
+		font: inherit;
 		cursor: pointer;
 	}
 
-	.profile-menu summary::-webkit-details-marker { display: none; }
-
-	.profile-menu-list {
+	.user-menu__panel {
 		position: absolute;
 		top: calc(100% + 0.5rem);
 		right: 0;
@@ -273,8 +320,8 @@
 		z-index: 110;
 	}
 
-	.profile-menu-list a,
-	.profile-menu-list button {
+	.user-menu__panel a,
+	.user-menu__panel button {
 		display: block;
 		width: 100%;
 		text-align: left;
@@ -289,13 +336,13 @@
 		cursor: pointer;
 	}
 
-	.profile-menu-list a:hover,
-	.profile-menu-list button:hover {
+	.user-menu__panel a:hover,
+	.user-menu__panel button:hover {
 		background: var(--color-bg-muted);
 		color: var(--color-primary);
 	}
 
-	.profile-menu-list hr {
+	.user-menu__panel hr {
 		border: none;
 		border-top: var(--border-width) solid var(--color-border);
 		margin: 0.25rem 0;

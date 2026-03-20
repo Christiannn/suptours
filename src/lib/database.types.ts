@@ -88,109 +88,70 @@ export type Database = {
           },
         ]
       }
+      community_flags: {
+        Row: {
+          created_at: string
+          id: string
+          reporter_id: string
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reporter_id: string
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reporter_id?: string
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_flags_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       community_subjects: {
         Row: {
-          id: string
-          title: string
-          body: string
           author_id: string
-          tags: string[]
+          body: string
           created_at: string
+          id: string
+          tags: string[] | null
+          title: string
           updated_at: string
         }
         Insert: {
-          id?: string
-          title: string
-          body: string
           author_id: string
-          tags?: string[]
+          body: string
           created_at?: string
+          id?: string
+          tags?: string[] | null
+          title: string
           updated_at?: string
         }
         Update: {
-          id?: string
-          title?: string
-          body?: string
           author_id?: string
-          tags?: string[]
+          body?: string
           created_at?: string
+          id?: string
+          tags?: string[] | null
+          title?: string
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "community_subjects_author_id_fkey"
             columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      subject_comments: {
-        Row: {
-          id: string
-          subject_id: string
-          author_id: string
-          body: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          subject_id: string
-          author_id: string
-          body: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          subject_id?: string
-          author_id?: string
-          body?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "subject_comments_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "community_subjects"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "subject_comments_author_id_fkey"
-            columns: ["author_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      community_flags: {
-        Row: {
-          id: string
-          target_type: string
-          target_id: string
-          reporter_id: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          target_type: string
-          target_id: string
-          reporter_id: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          target_type?: string
-          target_id?: string
-          reporter_id?: string
-          created_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "community_flags_reporter_id_fkey"
-            columns: ["reporter_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -329,7 +290,7 @@ export type Database = {
           country: string | null
           display_name: string | null
           id: string
-          is_admin: boolean
+          is_admin: boolean | null
           name: string | null
           updated_at: string | null
         }
@@ -339,6 +300,7 @@ export type Database = {
           country?: string | null
           display_name?: string | null
           id: string
+          is_admin?: boolean | null
           name?: string | null
           updated_at?: string | null
         }
@@ -348,10 +310,50 @@ export type Database = {
           country?: string | null
           display_name?: string | null
           id?: string
+          is_admin?: boolean | null
           name?: string | null
           updated_at?: string | null
         }
         Relationships: []
+      }
+      subject_comments: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          id: string
+          subject_id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          id?: string
+          subject_id: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          id?: string
+          subject_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subject_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subject_comments_subject_id_fkey"
+            columns: ["subject_id"]
+            isOneToOne: false
+            referencedRelation: "community_subjects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_members: {
         Row: {
@@ -507,28 +509,43 @@ export type Database = {
           approved: boolean
           comment: string | null
           created_at: string | null
+          declined: boolean
           id: string
-          rating: number
+          image_url: string | null
+          rating_access: number | null
+          rating_hosts: number | null
+          rating_nature: number | null
           tour_id: string
           user_id: string
+          visibility: number
         }
         Insert: {
           approved?: boolean
           comment?: string | null
           created_at?: string | null
+          declined?: boolean
           id?: string
-          rating: number
+          image_url?: string | null
+          rating_access?: number | null
+          rating_hosts?: number | null
+          rating_nature?: number | null
           tour_id: string
           user_id: string
+          visibility?: number
         }
         Update: {
           approved?: boolean
           comment?: string | null
           created_at?: string | null
+          declined?: boolean
           id?: string
-          rating?: number
+          image_url?: string | null
+          rating_access?: number | null
+          rating_hosts?: number | null
+          rating_nature?: number | null
           tour_id?: string
           user_id?: string
+          visibility?: number
         }
         Relationships: [
           {
@@ -686,6 +703,7 @@ export type Database = {
     }
     Functions: {
       get_user_id_by_email: { Args: { p_email: string }; Returns: string }
+      is_admin: { Args: never; Returns: boolean }
       user_can_manage_team: {
         Args: { p_team_id: string; p_user_id: string }
         Returns: boolean
