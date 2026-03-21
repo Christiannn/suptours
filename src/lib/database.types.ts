@@ -307,6 +307,48 @@ export type Database = {
           },
         ]
       }
+      marketplace_products: {
+        Row: {
+          address: string | null
+          contact_info: string | null
+          created_at: string
+          id: string
+          image_urls: string[]
+          is_active: boolean
+          name: string
+          price_label: string | null
+          tags: string[]
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          address?: string | null
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          image_urls?: string[]
+          is_active?: boolean
+          name: string
+          price_label?: string | null
+          tags?: string[]
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          address?: string | null
+          contact_info?: string | null
+          created_at?: string
+          id?: string
+          image_urls?: string[]
+          is_active?: boolean
+          name?: string
+          price_label?: string | null
+          tags?: string[]
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       newsletter_subscribers: {
         Row: {
           created_at: string | null

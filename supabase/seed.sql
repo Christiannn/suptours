@@ -67,6 +67,51 @@ BEGIN
   UPDATE public.profiles SET is_admin = true WHERE id = admin_uid;
 END $$;
 
+-- Marketplace seed
+INSERT INTO public.marketplace_products (
+  id,
+  name,
+  url,
+  tags,
+  address,
+  price_label,
+  contact_info,
+  image_urls,
+  is_active
+)
+VALUES
+  (
+    '10000000-0000-0000-0000-000000000001',
+    'SUP kursus og tours',
+    'https://bluespirit.dk/pages/sup-kursus-ebeltoft',
+    ARRAY['Course', 'School', 'Paddle'],
+    NULL,
+    'fra kr. 300',
+    NULL,
+    ARRAY[]::text[],
+    true
+  ),
+  (
+    '10000000-0000-0000-0000-000000000002',
+    'SUP Langeland',
+    'https://www.langeland.dk/langeland/planlaeg-din-tur/sup-langeland-gdk1123269',
+    ARRAY['Course', 'School'],
+    'Snøde Udflyttervej 14, 5953 Tranekær',
+    NULL,
+    NULL,
+    ARRAY[]::text[],
+    true
+  )
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  url = EXCLUDED.url,
+  tags = EXCLUDED.tags,
+  address = EXCLUDED.address,
+  price_label = EXCLUDED.price_label,
+  contact_info = EXCLUDED.contact_info,
+  image_urls = EXCLUDED.image_urls,
+  is_active = EXCLUDED.is_active;
+
 -- Insert sample tours (uses the first profile as creator)
 -- If no profile exists yet, these will silently fail; re-run after first user signup.
 

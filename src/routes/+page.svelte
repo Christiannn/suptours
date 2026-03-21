@@ -209,44 +209,56 @@
 	</section>
 {/if}
 
-<!-- CTA: Create Tour -->
-<section class="section section--cta">
-	<div class="container cta-card">
-		<span class="material-symbols-outlined cta-card__icon">kayaking</span>
-		<h2>Got a Favorite Spot?</h2>
-		<p>Create your own SUP tour and invite the community to join you on the water!</p>
-		<a href={resolve(data.user ? '/tours/new' : '/signup')} class="cta-card__btn">
-			{data.user ? 'Create a Tour' : 'Sign Up & Create'}
-		</a>
-	</div>
-</section>
+<!-- Pre-footer: CTA + Newsletter -->
+<section class="pre-footer">
+	<div class="container pre-footer__grid">
+		<div class="pre-footer__card cta-card">
+			<svg
+				class="cta-card__sup-icon"
+				viewBox="0 0 120 120"
+				role="img"
+				aria-label="Stand up paddle icon"
+			>
+				<rect x="42" y="8" width="36" height="104" rx="17" ry="17" />
+				<ellipse cx="60" cy="66" rx="10" ry="22" class="cta-card__sup-icon-cutout" />
+				<path d="M52 30 L68 36 M68 30 L52 36" class="cta-card__sup-icon-stroke" />
+				<line x1="18" y1="84" x2="96" y2="46" class="cta-card__sup-icon-stroke" />
+				<ellipse cx="14" cy="86" rx="11" ry="5" transform="rotate(-20 14 86)" />
+				<circle cx="100" cy="44" r="3.1" />
+			</svg>
+			<h2>Got a Favorite Spot?</h2>
+			<p>Create your own SUP tour and invite the community to join you on the water!</p>
+			<a href={resolve(data.user ? '/tours/new' : '/signup')} class="cta-card__btn">
+				{data.user ? 'Create a Tour' : 'Sign Up & Create'}
+			</a>
+		</div>
 
-<!-- Newsletter -->
-<section class="section section--muted">
-	<div class="container newsletter-section">
-		<h2 class="section__title">Stay in the Loop</h2>
-		<p class="newsletter-text">Get notified about new tours and community events.</p>
-		<form
-			method="POST"
-			action="?/newsletter"
-			use:enhance
-			class="newsletter-form"
-		>
-			<label for="newsletter-email">Email</label>
-			<input
-				id="newsletter-email"
-				name="email"
-				type="email"
-				placeholder="your@email.com"
-				required
-			/>
-			<button type="submit" class="primary">Subscribe</button>
-		</form>
-		{#if form?.newsletterMessage}
-			<p class="newsletter-message" class:success={form.newsletterSuccess}>
-				{form.newsletterMessage}
-			</p>
-		{/if}
+		<div class="pre-footer__card newsletter-section">
+			<span class="material-symbols-outlined newsletter-section__icon">mark_email_unread</span>
+			<h2 class="section__title">Stay in the Loop</h2>
+			<p class="newsletter-text">Get notified about new tours and community events.</p>
+			<form
+				method="POST"
+				action="?/newsletter"
+				use:enhance
+				class="newsletter-form"
+			>
+				<label for="newsletter-email">Email</label>
+				<input
+					id="newsletter-email"
+					name="email"
+					type="email"
+					placeholder="your@email.com"
+					required
+				/>
+				<button type="submit" class="primary">Subscribe</button>
+			</form>
+			{#if form?.newsletterMessage}
+				<p class="newsletter-message" class:success={form.newsletterSuccess}>
+					{form.newsletterMessage}
+				</p>
+			{/if}
+		</div>
 	</div>
 </section>
 
@@ -443,10 +455,6 @@
 		background: var(--color-bg-muted);
 	}
 
-	.section--cta {
-		text-align: center;
-	}
-
 	.container {
 		max-width: 64rem;
 		margin: 0 auto;
@@ -480,8 +488,9 @@
 	/* ---- FEATURED TOURS ---- */
 	.featured-tours {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+		grid-template-columns: repeat(4, minmax(0, 1fr));
 		gap: 1rem;
+		align-items: stretch;
 	}
 
 	.featured-tour-card {
@@ -583,7 +592,10 @@
 	}
 
 	.home-trust__media {
-		border-radius: var(--border-radius-lg);
+		width: 100%;
+		max-width: 22rem;
+		justify-self: center;
+		border-radius: var(--border-radius);
 		overflow: hidden;
 		box-shadow: var(--shadow-card);
 		border: 1px solid rgba(234, 88, 12, 0.45);
@@ -594,8 +606,8 @@
 		display: block;
 		width: 100%;
 		height: auto;
-		min-height: 11rem;
-		max-height: 18rem;
+		min-height: 8rem;
+		max-height: 11rem;
 		object-fit: cover;
 	}
 
@@ -716,16 +728,64 @@
 	}
 
 	/* ---- CTA CARD ---- */
+	.pre-footer {
+		background: #e6e7eb;
+		padding: 2.25rem 0;
+		border-top: 1px solid #d5d7dd;
+	}
+
+	.pre-footer__grid {
+		display: flex;
+		gap: 1.25rem;
+		align-items: stretch;
+		justify-content: space-between;
+	}
+
+	.pre-footer__card {
+		flex: 1 1 0;
+		padding: 1.5rem 1.25rem;
+		color: var(--color-text);
+	}
+
+	.pre-footer__card + .pre-footer__card {
+		border-left: 1px solid #cfd3da;
+	}
+
 	.cta-card {
-		max-width: 32rem;
-		padding: 2.5rem 1.5rem;
 		text-align: center;
 	}
 
-	.cta-card__icon {
-		font-size: 48px;
+	.pre-footer .section__title {
+		margin: 0 0 0.65rem;
+		font-size: clamp(1.28rem, 2.4vw, 1.48rem);
+		line-height: 1.2;
+	}
+
+	.pre-footer .cta-card p,
+	.pre-footer .newsletter-text {
+		margin: 0 0 1rem;
+		font-size: var(--font-size-base);
+		line-height: 1.55;
+	}
+
+	.cta-card__sup-icon {
+		width: 64px;
+		height: 64px;
+		display: block;
+		margin: 0 auto 0.8rem;
 		color: var(--color-primary);
-		margin-bottom: 0.75rem;
+		fill: currentColor;
+	}
+
+	.cta-card__sup-icon-cutout {
+		fill: var(--color-surface);
+	}
+
+	.cta-card__sup-icon-stroke {
+		fill: none;
+		stroke: var(--color-surface);
+		stroke-width: 2.3;
+		stroke-linecap: round;
 	}
 
 	.cta-card h2 {
@@ -758,14 +818,25 @@
 
 	/* ---- NEWSLETTER ---- */
 	.newsletter-section {
-		max-width: 28rem;
 		text-align: center;
+	}
+
+	.newsletter-section__icon {
+		display: block;
+		font-size: 3.9rem;
+		line-height: 1;
+		margin: 0 auto 0.75rem;
+		color: #c2410c;
+	}
+
+	.pre-footer .newsletter-section .section__title {
+		color: #9a3412;
 	}
 
 	.newsletter-text {
 		margin: 0 0 1rem;
 		color: var(--color-text-muted);
-		font-size: var(--font-size-sm);
+		font-size: var(--font-size-base);
 	}
 
 	.newsletter-form {
@@ -780,6 +851,20 @@
 	.newsletter-form input {
 		flex: 1;
 		min-width: 10rem;
+	}
+
+	.pre-footer .newsletter-form .primary {
+		background: #fff3eb;
+		border: 1px solid #ea580c;
+		border-radius: var(--border-radius-sm);
+		color: #9a3412;
+		font-weight: 700;
+	}
+
+	.pre-footer .newsletter-form .primary:hover {
+		background: #ffedd5;
+		border-color: #c2410c;
+		color: #7c2d12;
 	}
 
 	.newsletter-message {
@@ -799,6 +884,44 @@
 
 		.hero__title {
 			font-size: 3rem;
+		}
+
+		.home-trust__media {
+			max-width: 20rem;
+		}
+	}
+
+	@media (max-width: 767px) {
+		.home-trust__media {
+			max-width: none;
+		}
+
+		.home-trust__media img {
+			min-height: 6.25rem;
+			max-height: 8.5rem;
+		}
+	}
+
+	@media (max-width: 900px) {
+		.featured-tours {
+			display: grid;
+			grid-auto-flow: column;
+			grid-auto-columns: minmax(15.5rem, 1fr);
+			grid-template-columns: none;
+			overflow-x: auto;
+			padding-bottom: 0.25rem;
+			scrollbar-width: thin;
+		}
+	}
+
+	@media (max-width: 767px) {
+		.pre-footer__grid {
+			flex-direction: column;
+		}
+
+		.pre-footer__card + .pre-footer__card {
+			border-left: 0;
+			border-top: 1px solid #cfd3da;
 		}
 	}
 </style>

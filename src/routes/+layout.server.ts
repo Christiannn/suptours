@@ -4,11 +4,11 @@ export const load = (async ({ locals: { safeGetSession, supabase } }) => {
 
     const { user, session } = await safeGetSession();
     
-    // Fetch profile data including is_admin
+    // Fetch profile data used across layout/header
     const { data: profile } = user 
         ? await supabase
             .from('profiles')
-            .select('is_admin')
+            .select('is_admin, avatar_url, display_name')
             .eq('id', user.id)
             .single()
         : { data: null };
@@ -27,6 +27,8 @@ export const load = (async ({ locals: { safeGetSession, supabase } }) => {
         user,
         session,
         isAdmin: profile?.is_admin ?? false,
+        profileAvatarUrl: profile?.avatar_url ?? null,
+        profileDisplayName: profile?.display_name ?? null,
         myBookings: myBookings ?? []
     };
 

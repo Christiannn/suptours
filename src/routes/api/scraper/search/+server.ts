@@ -12,6 +12,15 @@ import { searchSUPEventSites } from '$lib/scraper/webSearch.server';
 import { resolveAiScraperConfig } from '$lib/scraper/resolveAiScraperConfig.server';
 import { getAnthropicApiKey, getGeminiApiKey } from '$lib/server/secrets';
 
+type ScraperSearchRequestBody = {
+	provider?: string;
+	tier?: string;
+	modelId?: string;
+	searchQueries?: string[];
+	domainPatterns?: string[];
+	maxResults?: number;
+};
+
 export const POST: RequestHandler = async ({ request, locals }) => {
 	// Admin protection is enforced by hooks.server.ts for /api/scraper/*
 	// but we add an explicit guard here as well.
@@ -26,9 +35,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	if (!profile?.is_admin) throw error(403, 'Forbidden');
 
-	let body: unknown;
+	let body: ScraperSearchRequestBody | undefined;
 	try {
-		body = await request.json();
+		body = (await request.json()) as ScraperSearchRequestBody;
 	} catch {
 		body = undefined;
 	}
@@ -55,7 +64,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	let sourcesFound = 0;
 
 	try {
-		const sites = await searchSUPEventSites(aiConfig);
+		const sites = await searchSUPEventSites(aiConfig, {
+			searchQueries: body?.searchQueries,
+			domainPatterns: body?.domainPatterns,
+			maxResults: body?.maxResults,
+		});
 		sourcesFound = sites.length;
 
 		for (const site of sites) {

@@ -24,12 +24,17 @@ export interface ExtractedEvent {
 	responsible_person: string | null;
 }
 
+export interface ScrapeEventOptions {
+	instructions?: string;
+}
+
 /**
  * Fetch a URL, extract text, and ask the AI to find all upcoming SUP events.
  */
 export async function scrapeEventsFromUrl(
 	url: string,
 	config: AiScraperConfig = DEFAULT_AI_CONFIG,
+	options: ScrapeEventOptions = {},
 ): Promise<ExtractedEvent[]> {
 	const html = await fetchPage(url);
 	if (!html) return [];
@@ -37,7 +42,7 @@ export async function scrapeEventsFromUrl(
 	const text = htmlToText(html);
 	if (text.length < 100) return [];
 
-	return extractEventsWithAi(text, url, config);
+	return extractEventsWithAi(text, url, config, options.instructions);
 }
 
 async function fetchPage(url: string): Promise<string | null> {
@@ -75,8 +80,12 @@ async function extractEventsWithAi(
 	pageText: string,
 	sourceUrl: string,
 	config: AiScraperConfig,
+	instructions?: string,
 ): Promise<ExtractedEvent[]> {
 	const currentYear = new Date().getFullYear();
+	const customInstructions = instructions?.trim()
+		? `\nEkstra instruktioner fra admin:\n${instructions.trim()}\n`
+		: '';
 
 	const prompt = `
 Du er en assistent der udtrækker SUP-arrangementer (Stand Up Paddleboard) fra websider.
@@ -92,6 +101,7 @@ Opgave:
 Udtræk ALLE kommende SUP-arrangementer, stævner, ture eller events der er nævnt på siden.
 Medtag kun events fra ${currentYear} eller frem – skip historiske events.
 Hvis du er i tvivl om datoen, inkluder arrangementet alligevel og sæt dato til null.
+${customInstructions}
 
 Returner et JSON-array – intet andet:
 [

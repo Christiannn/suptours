@@ -18,7 +18,7 @@ export interface DiscoveredSource {
 	description: string;
 }
 
-const SEARCH_QUERIES = [
+const DEFAULT_SEARCH_QUERIES = [
 	'SUP arrangementer Danmark 2025 2026',
 	'stand up paddleboard events Danmark race',
 	'SUP tour race DK kalender',
@@ -26,26 +26,44 @@ const SEARCH_QUERIES = [
 	'SUP klub events Danmark',
 ];
 
+const DEFAULT_DOMAIN_PATTERNS = ['*.dk*'];
+
+export interface SearchSUPEventSitesOptions {
+	searchQueries?: string[];
+	domainPatterns?: string[];
+	maxResults?: number;
+}
+
 export async function searchSUPEventSites(
 	config: AiScraperConfig = DEFAULT_AI_CONFIG,
+	options: SearchSUPEventSitesOptions = {},
 ): Promise<DiscoveredSource[]> {
 	const braveKey = getBraveSearchApiKey();
 	if (!braveKey) throw new Error('BRAVE_SEARCH_API_KEY is not configured (add to .env in project root)');
 
+	const searchQueries = (options.searchQueries ?? DEFAULT_SEARCH_QUERIES)
+		.map((q) => q.trim())
+		.filter(Boolean);
+	const domainPatterns = (options.domainPatterns ?? DEFAULT_DOMAIN_PATTERNS)
+		.map((p) => p.trim().toLowerCase())
+		.filter(Boolean);
+	const maxResults = clampMaxResults(options.maxResults);
+
 	const allRaw: BraveWebResult[] = [];
 
-	for (const query of SEARCH_QUERIES) {
+	for (const query of searchQueries) {
 		try {
-			const hits = await braveWebSearch(query, braveKey, 10);
+			const hits = await braveWebSearch(query, braveKey, Math.min(maxResults, 20));
 			allRaw.push(...hits);
 		} catch (e) {
 			console.error('[webSearch] Brave fejl for query:', query, e);
 		}
 	}
 
-	const unique = deduplicateRaw(allRaw);
+	const unique = deduplicateRaw(allRaw).filter((result) => matchesDomainPattern(result.url, domainPatterns));
+	const limited = unique.slice(0, maxResults);
 
-	return await filterWithAi(unique, config);
+	return await filterWithAi(limited, config);
 }
 
 export interface BraveWebResult {
@@ -96,6 +114,35 @@ function deduplicateRaw(results: BraveWebResult[]): BraveWebResult[] {
 		seen.add(r.url);
 		return true;
 	});
+}
+
+function clampMaxResults(raw: number | undefined): number {
+	if (!Number.isFinite(raw)) return 50;
+	return Math.max(1, Math.min(50, Math.floor(raw ?? 50)));
+}
+
+function matchesDomainPattern(url: string, patterns: string[]): boolean {
+	if (patterns.length === 0) return true;
+	let normalizedUrl = '';
+	let host = '';
+	try {
+		const parsed = new URL(url);
+		normalizedUrl = `${parsed.hostname}${parsed.pathname}`.toLowerCase();
+		host = parsed.hostname.toLowerCase();
+	} catch {
+		normalizedUrl = url.toLowerCase();
+	}
+
+	return patterns.some((pattern) => {
+		const raw = pattern.trim().toLowerCase();
+		if (!raw) return false;
+		const regex = new RegExp(`^${escapeRegex(raw).replace(/\\\*/g, '.*')}$`);
+		return regex.test(normalizedUrl) || (host ? regex.test(host) : false);
+	});
+}
+
+function escapeRegex(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 async function filterWithAi(raw: BraveWebResult[], config: AiScraperConfig): Promise<DiscoveredSource[]> {

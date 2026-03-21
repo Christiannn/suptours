@@ -4,11 +4,12 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import CookieConsent from '$lib/Shared/CookieConsent.svelte';
-	import DonateButton from '$lib/Shared/DonateButton.svelte';
 
 	let { data, children } = $props();
 
 	let mobileMenuOpen = $state(false);
+	let profileMenuOpen = $state(false);
+	const PROFILE_MENU_ID = 'desktop-profile-menu';
 
 	const pathname = $derived(page.url.pathname);
 	const segments = $derived(pathname.split('/').filter(Boolean));
@@ -27,18 +28,38 @@
 								? 'profile'
 								: 'home'
 	);
-	const displayName = $derived(data.user?.user_metadata?.display_name ?? data.user?.email ?? 'Profile');
+	const displayName = $derived(data.profileDisplayName ?? data.user?.user_metadata?.display_name ?? data.user?.email ?? 'Profile');
 
 	// Check if current page is a full-bleed page (no sidebar layout)
 	const isFullBleedPage = $derived(
-		activeSection === 'tours' || activeSection === 'home'
+		activeSection === 'tours' || activeSection === 'home' || activeSection === 'marketplace'
 	);
+
+	function closeProfileMenu() {
+		profileMenuOpen = false;
+	}
+
+	function handleWindowPointerDown(event: PointerEvent) {
+		if (!profileMenuOpen) return;
+		const profileMenuEl = document.getElementById(PROFILE_MENU_ID);
+		if (!profileMenuEl) return;
+		const target = event.target;
+		if (target instanceof Node && !profileMenuEl.contains(target)) {
+			closeProfileMenu();
+		}
+	}
+
+	function handleWindowKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') closeProfileMenu();
+	}
 </script>
 
 <svelte:head>
 	<title>SUP Tours — Find Your Next Paddle Adventure</title>
 	<meta name="description" content="Plan, find, share, and join Stand Up Paddle tours across Denmark and beyond." />
 </svelte:head>
+
+<svelte:window onpointerdown={handleWindowPointerDown} onkeydown={handleWindowKeydown} />
 
 <div id="app" class="app">
 	<!-- Desktop Header -->
@@ -55,20 +76,24 @@
 			<a href={resolve('/marketplace')} class="nav-link" class:active={activeSection === 'marketplace'}>Market</a>
 			<a href={resolve('/blog')} class="nav-link" class:active={activeSection === 'blog'}>Blog</a>
 			{#if data.user}
-				<details class="profile-menu">
+				<details id={PROFILE_MENU_ID} class="profile-menu" bind:open={profileMenuOpen}>
 					<summary class="nav-link" class:active={activeSection === 'profile'}>
-						<span class="material-symbols-outlined" style="font-size:20px;vertical-align:middle">account_circle</span>
+						{#if data.profileAvatarUrl}
+							<img src={data.profileAvatarUrl} alt="" class="profile-avatar profile-avatar--xs" />
+						{:else}
+							<span class="material-symbols-outlined" style="font-size:20px;vertical-align:middle">account_circle</span>
+						{/if}
 						{displayName}
 					</summary>
 					<div class="profile-menu-list">
-						<a href={resolve('/profile')}>Profile</a>
-						<a href={resolve('/team')}>Team manager</a>
+						<a href={resolve('/profile')} onclick={closeProfileMenu}>Profile</a>
+						<a href={resolve('/team')} onclick={closeProfileMenu}>Team manager</a>
 						{#if data.isAdmin}
-							<a href={resolve('/admin')}>Admin</a>
+							<a href={resolve('/admin')} onclick={closeProfileMenu}>Admin</a>
 						{/if}
 						<hr />
 						<form method="POST" action={resolve('/logout')} class="dropdown-logout-form">
-							<button type="submit">Log out</button>
+							<button type="submit" onclick={closeProfileMenu}>Log out</button>
 						</form>
 					</div>
 				</details>
@@ -123,7 +148,7 @@
 				<a href={resolve('/blog')}>Blog</a>
 				<a href={resolve('/community')}>Community</a>
 			</span>
-			<DonateButton />
+			<!-- <DonateButton /> -->
 		</div>
 	</footer>
 
@@ -146,9 +171,13 @@
 			<span class="material-symbols-outlined">forum</span>
 			<span class="bottom-nav-label">Community</span>
 		</a>
-		<a href={resolve('/profile')} class="bottom-nav-item" class:active={activeSection === 'profile'}>
+		<a
+			href={data.user ? resolve('/profile') : `${resolve('/login')}?next=%2Fprofile`}
+			class="bottom-nav-item"
+			class:active={activeSection === 'profile'}
+		>
 			<span class="material-symbols-outlined">account_circle</span>
-			<span class="bottom-nav-label">Profile</span>
+			<span class="bottom-nav-label">{data.user ? 'Profile' : 'Log in'}</span>
 		</a>
 	</nav>
 
@@ -173,7 +202,7 @@
 		border-bottom: var(--border-width) solid var(--color-border);
 		position: sticky;
 		top: 0;
-		z-index: 100;
+		z-index: 240;
 	}
 
 	.logo {
@@ -251,14 +280,37 @@
 	/* Profile dropdown */
 	.profile-menu {
 		position: relative;
+		z-index: 2;
 	}
 
 	.profile-menu summary {
 		list-style: none;
 		cursor: pointer;
+		display: inline-grid;
+		grid-template-columns: 2.35rem auto;
+		align-items: center;
+		gap: 0.55rem;
+		min-width: 10rem;
+		padding: 0.15rem 0.75rem 0.15rem 0.15rem;
 	}
 
 	.profile-menu summary::-webkit-details-marker { display: none; }
+
+	.profile-avatar {
+		display: inline-block;
+		object-fit: cover;
+		border-radius: var(--border-radius-full);
+		border: 1px solid var(--color-border);
+		background: var(--color-bg-muted);
+		flex-shrink: 0;
+	}
+
+	.profile-avatar--xs {
+		width: 2.35rem;
+		height: 2.35rem;
+		border-radius: calc(var(--border-radius-sm) - 1px);
+		border: none;
+	}
 
 	.profile-menu-list {
 		position: absolute;
@@ -272,7 +324,7 @@
 		border: var(--border-width) solid var(--color-border);
 		border-radius: var(--border-radius-lg);
 		box-shadow: var(--shadow-lg);
-		z-index: 110;
+		z-index: 280;
 	}
 
 	.profile-menu-list a,
@@ -388,7 +440,7 @@
 	/* ---- FOOTER ---- */
 	.footer {
 		border-top: var(--border-width) solid var(--color-border);
-		background: var(--color-surface);
+		background: #2a3038;
 		padding: 1.5rem var(--section-padding);
 	}
 
@@ -402,7 +454,7 @@
 
 	.footer-brand {
 		font-weight: 700;
-		color: var(--color-text);
+		color: #f4f6fa;
 	}
 
 	.footer-links {
@@ -411,13 +463,13 @@
 	}
 
 	.footer-links a {
-		color: var(--color-text-muted);
+		color: #c8d0db;
 		text-decoration: none;
 		font-size: var(--font-size-sm);
 	}
 
 	.footer-links a:hover {
-		color: var(--color-primary);
+		color: #ffffff;
 	}
 
 	/* ---- BOTTOM NAV (mobile) ---- */

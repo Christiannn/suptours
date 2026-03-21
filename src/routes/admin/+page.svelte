@@ -13,6 +13,7 @@
 		<a href={resolve('/admin/home-content')}>Home page image (trust section)</a>
 		<a href={resolve('/admin/blog/new')}>New blog post</a>
 		<a href={resolve('/admin/community')}>Community moderation</a>
+		<a href={resolve('/admin/marketplace')}>Marketplace products</a>
 		<a href={resolve('/admin/agents')}>Agenter (AI til scraper)</a>
 		<a href={resolve('/admin/scraper')}>Event scraper</a>
 	</nav>
