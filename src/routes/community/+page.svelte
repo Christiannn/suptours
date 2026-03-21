@@ -115,11 +115,11 @@
 					class="comm-bar__filter-btn"
 					class:comm-bar__filter-btn--active={filterOpen || activeTags.length > 0}
 					onclick={() => filterOpen = !filterOpen}
-					aria-label="Filter subjects"
+					aria-label="Quick filter subjects"
 				>
 					<span class="material-symbols-outlined">tune</span>
 					{#if activeTags.length === 0}
-						Filter
+						Quick filter
 					{:else}
 						<span class="comm-bar__filter-count">{activeTags.length}</span>
 						<button
@@ -382,7 +382,11 @@
 	}
 
 	.comm-bar__tag:hover { border-color: var(--color-primary); color: var(--color-primary); }
-	.comm-bar__tag--active { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+	.comm-bar__tag--active {
+		background: var(--color-primary);
+		border-color: var(--color-primary-border);
+		color: white;
+	}
 
 	/* ---- NEW SUBJECT BUTTON ---- */
 	.btn-new {
@@ -392,7 +396,7 @@
 		padding: 0.4rem 0.9rem;
 		background: var(--color-primary);
 		color: white;
-		border: none;
+		border: 1px solid var(--color-primary-border);
 		border-radius: var(--border-radius-full);
 		font: inherit;
 		font-size: var(--font-size-sm);
@@ -404,7 +408,11 @@
 		text-decoration: none;
 	}
 
-	.btn-new:hover { background: var(--color-primary-dark); text-decoration: none; }
+	.btn-new:hover {
+		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
+		text-decoration: none;
+	}
 	.btn-new .material-symbols-outlined { font-size: 18px; }
 	.btn-new--center { margin-top: 1rem; }
 
@@ -479,7 +487,11 @@
 	}
 
 	.tag-picker__tag:hover { border-color: var(--color-primary); color: var(--color-primary); }
-	.tag-picker__tag--active { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+	.tag-picker__tag--active {
+		background: var(--color-primary);
+		border-color: var(--color-primary-border);
+		color: white;
+	}
 
 	.form-error {
 		color: #ef4444;
@@ -520,7 +532,10 @@
 		transition: background var(--transition-fast);
 	}
 
-	.btn-submit:hover:not(:disabled) { background: var(--color-primary-dark); }
+	.btn-submit:hover:not(:disabled) {
+		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
+	}
 	.btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
 	/* ---- SUBJECT LIST ---- */

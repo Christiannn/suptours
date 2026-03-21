@@ -9,8 +9,10 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { searchSUPEventSites } from '$lib/scraper/webSearch.server';
+import { resolveAiScraperConfig } from '$lib/scraper/resolveAiScraperConfig.server';
+import { getAnthropicApiKey, getGeminiApiKey } from '$lib/server/secrets';
 
-export const POST: RequestHandler = async ({ locals }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	// Admin protection is enforced by hooks.server.ts for /api/scraper/*
 	// but we add an explicit guard here as well.
 	const { user } = await locals.safeGetSession();
@@ -23,6 +25,21 @@ export const POST: RequestHandler = async ({ locals }) => {
 		.single();
 
 	if (!profile?.is_admin) throw error(403, 'Forbidden');
+
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		body = undefined;
+	}
+	const aiConfig = resolveAiScraperConfig(body);
+
+	if (aiConfig.provider === 'gemini' && !getGeminiApiKey()) {
+		throw error(400, 'GEMINI_API_KEY er ikke sat på serveren (.env — se local-dev.md)');
+	}
+	if (aiConfig.provider === 'claude' && !getAnthropicApiKey()) {
+		throw error(400, 'ANTHROPIC_API_KEY er ikke sat på serveren');
+	}
 
 	// Create a run record
 	const { data: run, error: runErr } = await locals.supabase
@@ -38,7 +55,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 	let sourcesFound = 0;
 
 	try {
-		const sites = await searchSUPEventSites();
+		const sites = await searchSUPEventSites(aiConfig);
 		sourcesFound = sites.length;
 
 		for (const site of sites) {

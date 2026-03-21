@@ -7,7 +7,7 @@
 <div class="blog-edit-page">
 	<div class="header">
 		<h1>Edit posts</h1>
-		<a href={resolve('/blog/new')} class="new-post-link">New post</a>
+		<a href={resolve('/admin/blog/new')} class="new-post-link">New post</a>
 	</div>
 
 	{#if data.loadError}
@@ -19,7 +19,7 @@
 			{#each data.posts as post (post.id)}
 				<li>
 					<div class="post-main">
-						<a href={resolve('/blog/edit/[slug]', { slug: post.slug })} class="post-title">{post.title}</a>
+						<a href={resolve(`/admin/blog/edit/${post.slug}`)} class="post-title">{post.title}</a>
 						<span class="meta">
 							{post.updated_at
 								? `Updated ${new Date(post.updated_at).toLocaleDateString()}`
@@ -28,7 +28,7 @@
 									: ''}
 						</span>
 					</div>
-					<a href={resolve('/blog/[slug]', { slug: post.slug })} class="view-link">View</a>
+					<a href={resolve(`/blog/${post.slug}`)} class="view-link">View</a>
 				</li>
 			{/each}
 		</ul>

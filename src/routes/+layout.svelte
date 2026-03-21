@@ -236,6 +236,7 @@
 		color: var(--color-text-light);
 		font-size: var(--font-size-sm);
 		font-weight: 600;
+		border: 1px solid var(--color-primary-border);
 		border-radius: var(--border-radius-full);
 		text-decoration: none;
 		transition: background var(--transition-fast);
@@ -243,6 +244,7 @@
 
 	.btn-primary-sm:hover {
 		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
 		text-decoration: none;
 	}
 
@@ -464,6 +466,7 @@
 		top: -0.75rem;
 		width: 3rem;
 		height: 3rem;
+		border: 1px solid var(--color-primary-border);
 		border-radius: var(--border-radius-full);
 		background: var(--color-primary);
 		color: var(--color-text-light);
@@ -478,6 +481,7 @@
 
 	.bottom-nav-fab:hover {
 		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
 	}
 
 	/* ---- RESPONSIVE ---- */

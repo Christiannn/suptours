@@ -34,6 +34,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_intent_log: {
+        Row: {
+          created_at: string
+          id: string
+          intent_summary: string | null
+          query_params: Json
+          raw_query: string | null
+          referrer: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          intent_summary?: string | null
+          query_params?: Json
+          raw_query?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          intent_summary?: string | null
+          query_params?: Json
+          raw_query?: string | null
+          referrer?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      agent_intent_submissions: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          purpose: string | null
+          referrer: string | null
+          search_query: string | null
+          user_agent: string | null
+          users_looking_for: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purpose?: string | null
+          referrer?: string | null
+          search_query?: string | null
+          user_agent?: string | null
+          users_looking_for?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          purpose?: string | null
+          referrer?: string | null
+          search_query?: string | null
+          user_agent?: string | null
+          users_looking_for?: string | null
+        }
+        Relationships: []
+      }
       blog_posts: {
         Row: {
           author_id: string
@@ -119,69 +182,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      agent_intent_submissions: {
-        Row: {
-          created_at: string
-          id: string
-          notes: string | null
-          purpose: string | null
-          referrer: string | null
-          search_query: string | null
-          user_agent: string | null
-          users_looking_for: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          notes?: string | null
-          purpose?: string | null
-          referrer?: string | null
-          search_query?: string | null
-          user_agent?: string | null
-          users_looking_for?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          notes?: string | null
-          purpose?: string | null
-          referrer?: string | null
-          search_query?: string | null
-          user_agent?: string | null
-          users_looking_for?: string | null
-        }
-        Relationships: []
-      }
-      agent_intent_log: {
-        Row: {
-          created_at: string
-          id: string
-          intent_summary: string | null
-          query_params: Json
-          raw_query: string | null
-          referrer: string | null
-          user_agent: string | null
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          intent_summary?: string | null
-          query_params?: Json
-          raw_query?: string | null
-          referrer?: string | null
-          user_agent?: string | null
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          intent_summary?: string | null
-          query_params?: Json
-          raw_query?: string | null
-          referrer?: string | null
-          user_agent?: string | null
-        }
-        Relationships: []
       }
       community_subjects: {
         Row: {
@@ -379,6 +379,102 @@ export type Database = {
         }
         Relationships: []
       }
+      scraper_runs: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          events_created: number
+          id: string
+          run_type: string
+          sources_found: number
+          started_at: string
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          events_created?: number
+          id?: string
+          run_type: string
+          sources_found?: number
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          events_created?: number
+          id?: string
+          run_type?: string
+          sources_found?: number
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      scraper_sources: {
+        Row: {
+          created_at: string
+          description: string | null
+          domain: string
+          id: string
+          is_active: boolean
+          last_scraped_at: string | null
+          last_searched_at: string | null
+          notes: string | null
+          scrape_count: number
+          title: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          domain: string
+          id?: string
+          is_active?: boolean
+          last_scraped_at?: string | null
+          last_searched_at?: string | null
+          notes?: string | null
+          scrape_count?: number
+          title?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          domain?: string
+          id?: string
+          is_active?: boolean
+          last_scraped_at?: string | null
+          last_searched_at?: string | null
+          notes?: string | null
+          scrape_count?: number
+          title?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
+      site_settings: {
+        Row: {
+          key: string
+          updated_at: string
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: string
+        }
+        Relationships: []
+      }
       subject_comments: {
         Row: {
           author_id: string
@@ -572,43 +668,28 @@ export type Database = {
           approved: boolean
           comment: string | null
           created_at: string | null
-          declined: boolean
           id: string
-          image_url: string | null
-          rating_access: number | null
-          rating_hosts: number | null
-          rating_nature: number | null
+          rating: number
           tour_id: string
           user_id: string
-          visibility: number
         }
         Insert: {
           approved?: boolean
           comment?: string | null
           created_at?: string | null
-          declined?: boolean
           id?: string
-          image_url?: string | null
-          rating_access?: number | null
-          rating_hosts?: number | null
-          rating_nature?: number | null
+          rating: number
           tour_id: string
           user_id: string
-          visibility?: number
         }
         Update: {
           approved?: boolean
           comment?: string | null
           created_at?: string | null
-          declined?: boolean
           id?: string
-          image_url?: string | null
-          rating_access?: number | null
-          rating_hosts?: number | null
-          rating_nature?: number | null
+          rating?: number
           tour_id?: string
           user_id?: string
-          visibility?: number
         }
         Relationships: [
           {

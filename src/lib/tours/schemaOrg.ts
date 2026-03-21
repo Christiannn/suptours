@@ -128,8 +128,8 @@ export function buildToursPageJsonLd(origin: string, tours: Tour[]) {
  */
 export function buildToursPageJsonLdWithSpotlight(
 	origin: string,
-	tours: TourSchemaInput[],
-	spotlight: TourSchemaInput | null,
+	tours: Tour[],
+	spotlight: Tour | null,
 ) {
 	const graph: object[] = [buildAgendaItemListPayload(origin, tours, 5)];
 	const firstFiveIds = new Set(tours.slice(0, 5).map((t) => t.id));

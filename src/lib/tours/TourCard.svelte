@@ -7,13 +7,20 @@
 
 	const isCreator = $derived(user && tour.creator_id === user.id);
 
-	const formattedDate = $derived(() => {
+	const hasSeatCap = $derived(
+		tour.max_participants != null && Number(tour.max_participants) > 0,
+	);
+	const hasJoined = $derived(tour.participant_count > 0);
+
+	const dateOverlay = $derived.by(() => {
 		const d = new Date(tour.start_date + 'T00:00:00');
-		const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
-		if (tour.start_time) {
-			return `${dayName}, ${tour.start_time.slice(0, 5)}`;
-		}
-		return dayName;
+		const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+		const dayName = d.toLocaleDateString('en-US', { weekday: 'long' });
+		return {
+			datePart,
+			dayName,
+			startTime: tour.start_time ? tour.start_time.slice(0, 5) : null
+		};
 	});
 
 	const sourceBadge = $derived(tour.source === 'web' ? 'Official Event' : 'Community');
@@ -43,7 +50,15 @@
 		<div class="tour-card__image-overlay"></div>
 		<div class="tour-card__date-overlay">
 			<span class="material-symbols-outlined tour-card__date-icon">calendar_month</span>
-			<span>{formattedDate()}</span>
+			<div class="tour-card__date-text">
+				<span class="tour-card__date-part">{dateOverlay.datePart}</span>
+				<span class="tour-card__date-sep" aria-hidden="true">·</span>
+				<span class="tour-card__date-day">{dateOverlay.dayName}</span>
+				{#if dateOverlay.startTime}
+					<span class="tour-card__date-sep tour-card__date-sep--before-time" aria-hidden="true">·</span>
+					<span class="tour-card__date-start">starting {dateOverlay.startTime}</span>
+				{/if}
+			</div>
 		</div>
 	</div>
 
@@ -53,10 +68,6 @@
 		<div class="tour-card__meta">
 			<span class="material-symbols-outlined tour-card__location-icon">location_on</span>
 			<span class="tour-card__locality">{tour.locality ?? 'Location TBD'}</span>
-			{#if tour.max_participants}
-				<span class="tour-card__dot">·</span>
-				<span class="tour-card__capacity">{tour.participant_count}/{tour.max_participants}</span>
-			{/if}
 		</div>
 
 		{#if tour.tags.length > 0}
@@ -72,12 +83,23 @@
 
 		<div class="tour-card__footer">
 			<div class="tour-card__footer-left">
-				<div class="tour-card__participants">
-					<span class="material-symbols-outlined tour-card__people-icon">group</span>
-					<span class="tour-card__participant-count">
-						{tour.participant_count} joined
-					</span>
-				</div>
+				{#if hasSeatCap || hasJoined}
+					<div class="tour-card__capacity">
+						{#if hasSeatCap}
+							<span class="tour-card__seats tour-card__seats--desktop">Seats: {tour.max_participants}</span>
+							<span class="tour-card__seats tour-card__seats--mobile">Seats {tour.max_participants}</span>
+						{/if}
+						{#if hasSeatCap && hasJoined}
+							<span class="tour-card__cap-sep" aria-hidden="true">/</span>
+						{/if}
+						{#if hasJoined}
+							<span class="tour-card__joined">
+								<span class="material-symbols-outlined tour-card__joined-icon" aria-hidden="true">group</span>
+								<span>{tour.participant_count} joined</span>
+							</span>
+						{/if}
+					</div>
+				{/if}
 				{#if isCreator}
 					<a 
 						href={resolve(`/tours/${tour.id}/edit`)} 
@@ -90,7 +112,7 @@
 				{/if}
 			</div>
 			<span class="tour-card__join-hint" class:tour-card__join-hint--joined={tour.has_joined}>
-				{tour.has_joined ? 'Joined ✓' : 'Join'}
+				{tour.has_joined ? 'Going ✓' : "I'm going"}
 			</span>
 		</div>
 	</div>
@@ -170,8 +192,9 @@
 		position: absolute;
 		bottom: 0.6rem;
 		left: 0.6rem;
+		right: 0.6rem;
 		display: flex;
-		align-items: center;
+		align-items: flex-start;
 		gap: 0.25rem;
 		color: white;
 		font-size: 0.75rem;
@@ -179,8 +202,63 @@
 		z-index: 2;
 	}
 
+	@media (min-width: 768px) {
+		.tour-card__date-overlay {
+			align-items: center;
+		}
+	}
+
 	.tour-card__date-icon {
 		font-size: 15px;
+		margin-top: 0.05rem;
+		flex-shrink: 0;
+	}
+
+	@media (min-width: 768px) {
+		.tour-card__date-icon {
+			margin-top: 0;
+		}
+	}
+
+	.tour-card__date-text {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		column-gap: 0.35rem;
+		row-gap: 0.1rem;
+		line-height: 1.25;
+		text-align: left;
+		text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+		min-width: 0;
+	}
+
+	@media (min-width: 768px) {
+		.tour-card__date-text {
+			flex-wrap: nowrap;
+			column-gap: 0.35rem;
+		}
+	}
+
+	.tour-card__date-sep {
+		opacity: 0.85;
+		user-select: none;
+	}
+
+	@media (max-width: 767px) {
+		.tour-card__date-sep--before-time {
+			display: none;
+		}
+
+		.tour-card__date-start {
+			flex: 1 0 100%;
+		}
+	}
+
+	.tour-card__date-start {
+		font-weight: 600;
+		letter-spacing: 0.02em;
+		opacity: 0.95;
+		white-space: nowrap;
 	}
 
 	/* ---- Body ---- */
@@ -218,15 +296,6 @@
 		max-width: 14rem;
 	}
 
-	.tour-card__dot {
-		margin: 0 0.15rem;
-	}
-
-	.tour-card__capacity {
-		flex-shrink: 0;
-		font-size: var(--font-size-xs);
-	}
-
 	/* ---- Tags ---- */
 	.tour-card__tags {
 		display: flex;
@@ -254,22 +323,75 @@
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
+		min-width: 0;
 	}
 
-	.tour-card__participants {
+	/* Seats + joined (desktop: one row with / ; mobile: stacked, no icon on joined) */
+	.tour-card__capacity {
 		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-	}
-
-	.tour-card__people-icon {
-		font-size: 16px;
-		color: var(--color-text-muted);
-	}
-
-	.tour-card__participant-count {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.2rem;
 		font-size: var(--font-size-xs);
 		color: var(--color-text-muted);
+		min-width: 0;
+	}
+
+	.tour-card__seats--desktop {
+		display: none;
+	}
+
+	.tour-card__seats--mobile {
+		display: inline;
+	}
+
+	.tour-card__cap-sep {
+		display: none;
+	}
+
+	.tour-card__joined {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+	}
+
+	.tour-card__joined-icon {
+		font-size: 16px;
+		color: var(--color-text-muted);
+		flex-shrink: 0;
+	}
+
+	@media (min-width: 768px) {
+		.tour-card__capacity {
+			flex-direction: row;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 0.35rem;
+		}
+
+		.tour-card__seats--desktop {
+			display: inline;
+		}
+
+		.tour-card__seats--mobile {
+			display: none;
+		}
+
+		.tour-card__cap-sep {
+			display: inline;
+			opacity: 0.65;
+			user-select: none;
+		}
+
+		.tour-card__joined-icon {
+			display: inline-block;
+		}
+	}
+
+	@media (max-width: 767px) {
+		.tour-card__joined-icon {
+			display: none;
+		}
 	}
 
 	.tour-card__edit-btn {
@@ -301,19 +423,22 @@
 		font-size: var(--font-size-sm);
 		font-weight: 600;
 		border-radius: var(--border-radius-full);
-		background: rgba(19, 200, 236, 0.1);
+		border: 1px solid var(--color-primary-border);
+		background: rgba(var(--color-primary-rgb), 0.1);
 		color: var(--color-primary);
-		transition: background var(--transition-fast), color var(--transition-fast);
+		transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 	}
 
 	.tour-card:hover .tour-card__join-hint:not(.tour-card__join-hint--joined) {
 		background: var(--color-primary);
 		color: white;
+		border-color: var(--color-primary-border);
 	}
 
 	.tour-card__join-hint--joined {
 		background: var(--color-primary);
 		color: white;
+		border-color: var(--color-primary-border);
 		box-shadow: var(--shadow-primary);
 	}
 

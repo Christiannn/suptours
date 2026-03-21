@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { fly } from 'svelte/transition';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import TourTimeline from '$lib/tours/TourTimeline.svelte';
@@ -19,6 +19,9 @@
 	let loadMoreTrigger = $state<HTMLElement | null>(null);
 	/** Draft search text; synced from URL when the URL changes */
 	let searchDraft = $state('');
+	/** Search field expanded (icon → input); also open when URL has an active search */
+	let searchExpanded = $state(false);
+	let searchInputEl = $state<HTMLInputElement | null>(null);
 
 	const invitations = [
 		"Ready to lead? Create your own tour!",
@@ -42,6 +45,7 @@
 
 	const searchQuery = $derived(page.url.searchParams.get('search')?.trim() ?? '');
 	const searchActive = $derived(Boolean(searchQuery));
+	const searchOpen = $derived(searchExpanded || searchActive);
 
 	$effect(() => {
 		searchDraft = page.url.searchParams.get('search') ?? '';
@@ -113,7 +117,35 @@
 		const url = new URL(page.url);
 		url.searchParams.delete('search');
 		visibleCount = 5;
+		searchExpanded = false;
 		goto(url.toString(), { replaceState: true, keepFocus: true, noScroll: true });
+	}
+
+	async function toggleSearch() {
+		if (searchActive) {
+			await tick();
+			searchInputEl?.focus();
+			return;
+		}
+		if (searchExpanded) {
+			searchExpanded = false;
+			return;
+		}
+		searchExpanded = true;
+		filterOpen = false;
+		await tick();
+		searchInputEl?.focus();
+	}
+
+	function closeSearchPanel() {
+		if (searchActive) return;
+		searchExpanded = false;
+	}
+
+	function toggleFilterOpen() {
+		const next = !filterOpen;
+		filterOpen = next;
+		if (next) searchExpanded = false;
 	}
 
 	function openTour(tour: Tour) {
@@ -154,43 +186,48 @@
 
 <div class="tours-page">
 	<!-- Search + filter bar -->
-	<div class="tours-bar">
-		<form class="tours-search" onsubmit={applySearch} role="search" aria-label="Search tours">
-			<label class="tours-search__label" for="tours-search-input">Search tours</label>
-			<div class="tours-search__row">
-				<span class="material-symbols-outlined tours-search__icon" aria-hidden="true">search</span>
-				<input
-					id="tours-search-input"
-					class="tours-search__input"
-					type="search"
-					name="search"
-					placeholder="Title, place, tags, organizer…"
-					autocomplete="off"
-					bind:value={searchDraft}
-				/>
-				<button type="submit" class="tours-search__submit">Search</button>
-				{#if searchActive}
-					<button type="button" class="tours-search__clear" onclick={clearSearch}>
-						Clear
-					</button>
-				{/if}
-			</div>
-			{#if searchActive}
-				<p class="tours-search__hint">Showing up to 10 best matches for “{searchQuery}”.</p>
-			{/if}
-		</form>
-
+	<div class="tours-bar" class:tours-bar--filter-open={filterOpen}>
 		<div class="tours-bar__main">
-			<span class="tours-bar__count">
-				{filteredTours.length} tour{filteredTours.length !== 1 ? 's' : ''}
-				{#if searchActive}
-					<span class="tours-bar__filtered">(search)</span>
-				{/if}
-				{#if activeTags.length > 0}
-					<span class="tours-bar__filtered">(filtered)</span>
-				{/if}
-			</span>
-			
+			<form
+				class="tours-search"
+				class:tours-search--open={searchOpen}
+				onsubmit={applySearch}
+				role="search"
+				aria-label="Search tours"
+			>
+				<label class="tours-search__label" for="tours-search-input">Search tours</label>
+				<button
+					type="button"
+					class="tours-search__toggle"
+					onclick={toggleSearch}
+					aria-expanded={searchOpen}
+					aria-controls="tours-search-input"
+					aria-label={searchOpen ? 'Search tours (focus field)' : 'Open search'}
+				>
+					<span class="material-symbols-outlined" aria-hidden="true">search</span>
+				</button>
+				<div class="tours-search__panel" inert={!searchOpen}>
+					<input
+						id="tours-search-input"
+						bind:this={searchInputEl}
+						class="tours-search__input"
+						type="search"
+						name="search"
+						placeholder="Title, place, tags…"
+						autocomplete="off"
+						bind:value={searchDraft}
+					/>
+					<button type="submit" class="tours-search__submit">Search</button>
+					{#if searchActive}
+						<button type="button" class="tours-search__clear" onclick={clearSearch}>Clear</button>
+					{:else if searchOpen}
+						<button type="button" class="tours-search__close" onclick={closeSearchPanel} aria-label="Close search">
+							<span class="material-symbols-outlined" aria-hidden="true">close</span>
+						</button>
+					{/if}
+				</div>
+			</form>
+
 			<div class="tours-bar__actions">
 				{#if filterOpen}
 					<div class="tours-bar__tags-inline" in:fly={{ x: 30, duration: 200 }} out:fly={{ x: 10, duration: 150 }}>
@@ -211,12 +248,12 @@
 						type="button"
 						class="tours-bar__filter-btn"
 						class:tours-bar__filter-btn--active={filterOpen || activeTags.length > 0}
-						onclick={() => (filterOpen = !filterOpen)}
-						aria-label="Filter tours"
+						onclick={toggleFilterOpen}
+						aria-label="Quick filter tours"
 					>
 						<span class="material-symbols-outlined">tune</span>
 						{#if activeTags.length === 0}
-							Filter
+							Quick filter
 						{:else}
 							<span class="tours-bar__filter-count">{activeTags.length}</span>
 						{/if}
@@ -234,6 +271,9 @@
 				</div>
 			</div>
 		</div>
+		{#if searchActive}
+			<p class="tours-search__hint">Showing up to 10 best matches for “{searchQuery}”.</p>
+		{/if}
 	</div>
 
 	<!-- Timeline with embedded invitations -->
@@ -279,11 +319,15 @@
 		position: relative;
 	}
 
-	/* ---- SEARCH (sub-header) ---- */
+	/* ---- INLINE SEARCH (icon expands to field) ---- */
 	.tours-search {
-		padding-bottom: 0.65rem;
-		margin-bottom: 0.5rem;
-		border-bottom: 1px solid var(--color-border-light, #eee);
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		flex: 1;
+		min-width: 0;
+		max-width: 100%;
+		margin: 0;
 	}
 
 	.tours-search__label {
@@ -298,52 +342,93 @@
 		border: 0;
 	}
 
-	.tours-search__row {
-		display: flex;
+	.tours-search__toggle {
+		display: inline-flex;
 		align-items: center;
-		gap: 0.5rem;
-		flex-wrap: wrap;
+		justify-content: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		padding: 0;
+		border-radius: var(--border-radius-full);
+		border: var(--border-width) solid var(--color-border);
+		background: var(--color-surface);
+		color: var(--color-text);
+		cursor: pointer;
+		flex-shrink: 0;
+		transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
 	}
 
-	.tours-search__icon {
-		font-size: 1.25rem;
-		color: var(--color-text-muted, #666);
-		flex-shrink: 0;
+	.tours-search__toggle:hover {
+		background: var(--color-bg-muted);
+	}
+
+	.tours-search--open .tours-search__toggle {
+		border-color: var(--color-primary);
+		color: var(--color-primary);
+	}
+
+	.tours-search__toggle .material-symbols-outlined {
+		font-size: 22px;
+	}
+
+	.tours-search__panel {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		flex: 0 0 0;
+		min-width: 0;
+		max-width: 0;
+		opacity: 0;
+		overflow: hidden;
+		pointer-events: none;
+		transition:
+			flex 0.24s ease,
+			max-width 0.24s ease,
+			opacity 0.2s ease;
+	}
+
+	.tours-search--open .tours-search__panel {
+		flex: 1 1 auto;
+		max-width: min(28rem, 100%);
+		opacity: 1;
+		pointer-events: auto;
 	}
 
 	.tours-search__input {
 		flex: 1;
-		min-width: 12rem;
-		padding: 0.45rem 0.65rem;
-		border: var(--border-width, 1px) solid var(--color-border, #ccc);
-		border-radius: var(--radius-md, 8px);
+		min-width: 0;
+		padding: 0.4rem 0.55rem;
+		border: var(--border-width) solid var(--color-border);
+		border-radius: var(--border-radius);
 		font: inherit;
-		font-size: var(--font-size-sm, 0.95rem);
-		background: var(--color-bg, #fff);
+		font-size: var(--font-size-sm);
+		background: var(--color-bg);
 		color: var(--color-text);
 	}
 
 	.tours-search__input:focus {
-		outline: 2px solid var(--color-primary, #0a6ea4);
+		outline: 2px solid var(--color-primary);
 		outline-offset: 1px;
 	}
 
 	.tours-search__submit,
 	.tours-search__clear {
 		font: inherit;
-		font-size: var(--font-size-sm, 0.875rem);
-		padding: 0.45rem 0.85rem;
-		border-radius: var(--radius-md, 8px);
+		font-size: var(--font-size-sm);
+		padding: 0.4rem 0.65rem;
+		border-radius: var(--border-radius);
 		cursor: pointer;
-		border: var(--border-width, 1px) solid var(--color-border, #ccc);
-		background: var(--color-surface, #fafafa);
+		border: var(--border-width) solid var(--color-border);
+		background: var(--color-surface);
 		color: var(--color-text);
+		flex-shrink: 0;
+		white-space: nowrap;
 	}
 
 	.tours-search__submit {
-		background: var(--color-primary, #0a6ea4);
+		background: var(--color-primary);
 		color: #fff;
-		border-color: transparent;
+		border-color: var(--color-primary-border);
 		font-weight: 600;
 	}
 
@@ -351,10 +436,35 @@
 		background: transparent;
 	}
 
+	.tours-search__close {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 2rem;
+		height: 2rem;
+		padding: 0;
+		border: none;
+		border-radius: var(--border-radius-full);
+		background: transparent;
+		color: var(--color-text-muted);
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+
+	.tours-search__close:hover {
+		background: var(--color-bg-muted);
+		color: var(--color-text);
+	}
+
+	.tours-search__close .material-symbols-outlined {
+		font-size: 20px;
+	}
+
 	.tours-search__hint {
-		margin: 0.4rem 0 0;
+		margin: 0.35rem 0 0;
+		padding: 0;
 		font-size: 0.8rem;
-		color: var(--color-text-muted, #555);
+		color: var(--color-text-muted);
 	}
 
 	/* ---- FILTER BAR ---- */
@@ -373,24 +483,7 @@
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.75rem;
-	}
-
-	.tours-bar__count {
-		display: none;
-		font-size: var(--font-size-sm);
-		color: var(--color-text-muted);
-		font-weight: 500;
-		flex-shrink: 0;
-	}
-
-	@media (min-width: 768px) {
-		.tours-bar__count {
-			display: block;
-		}
-	}
-
-	.tours-bar__filtered {
-		color: var(--color-primary);
+		min-width: 0;
 	}
 
 	.tours-bar__actions {
@@ -400,6 +493,48 @@
 		gap: 0.75rem;
 		min-width: 0;
 		flex: 1;
+	}
+
+	/* Small screens: search open → full width, hide quick filter (unless filter flyout is open) */
+	@media (max-width: 767px) {
+		.tours-bar:not(.tours-bar--filter-open) .tours-bar__main:has(.tours-search--open) .tours-bar__actions {
+			display: none;
+		}
+
+		.tours-bar:not(.tours-bar--filter-open) .tours-bar__main:has(.tours-search--open) .tours-search {
+			flex: 1 1 100%;
+			width: 100%;
+			min-width: 0;
+		}
+
+		.tours-bar:not(.tours-bar--filter-open) .tours-bar__main:has(.tours-search--open) .tours-search__panel {
+			max-width: 100%;
+		}
+
+		/* Quick filter open → full width flyout, hide search until filter closes */
+		.tours-bar--filter-open .tours-search {
+			display: none;
+		}
+
+		.tours-bar--filter-open .tours-bar__actions {
+			flex: 1 1 100%;
+			width: 100%;
+			min-width: 0;
+			flex-direction: column;
+			align-items: stretch;
+			justify-content: flex-start;
+			gap: 0.65rem;
+		}
+
+		.tours-bar--filter-open .tours-bar__tags-inline {
+			width: 100%;
+			max-width: 100%;
+		}
+
+		.tours-bar--filter-open .tours-bar__filter-group {
+			align-self: flex-end;
+			flex-shrink: 0;
+		}
 	}
 
 	.tours-bar__filter-group {
@@ -512,7 +647,7 @@
 
 	.tours-bar__tag--active {
 		background: var(--color-primary);
-		border-color: var(--color-primary);
+		border-color: var(--color-primary-border);
 		color: white;
 	}
 
@@ -586,6 +721,7 @@
 		right: 2rem;
 		width: 3.5rem;
 		height: 3.5rem;
+		border: 1px solid var(--color-primary-border);
 		border-radius: var(--border-radius-full);
 		background: var(--color-primary);
 		color: white;
@@ -599,6 +735,7 @@
 
 	.tours-fab:hover {
 		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
 		transform: scale(1.05);
 		text-decoration: none;
 	}

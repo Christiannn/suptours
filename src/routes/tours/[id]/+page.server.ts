@@ -19,11 +19,10 @@ export const load = (async ({ params, locals: { supabase, safeGetSession } }) =>
 		error(404, 'Tour not found');
 	}
 
-	// Increment view count (fire and forget)
-	supabase.rpc('', {}).catch(() => {}); // placeholder — we do a raw update
+	// Increment view count
 	await supabase
 		.from('tours')
-		.update({ view_count: tour.view_count + 1 })
+		.update({ view_count: (tour.view_count ?? 0) + 1 })
 		.eq('id', tour.id);
 
 	// Get participants

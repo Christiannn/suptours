@@ -16,8 +16,10 @@
   --line-height-relaxed: 1.75;
 
   /* Colors - SUP Tours palette */
-  --color-primary: #13c8ec;
-  --color-primary-dark: #0ea5c6;
+  --color-primary: #0aa3c4;
+  --color-primary-rgb: 10, 163, 196;
+  --color-primary-dark: #087a94;
+  --color-primary-border: #1e3a8a; /* dark blue edge on primary buttons */
   --color-primary-light: #e0f7fc;
   --color-secondary: #F5EFE6;
   --color-bg: #f6f8f8;
@@ -29,8 +31,8 @@
   --color-text-light: #ffffff;
   --color-border: #e0e8ea;
   --color-border-light: #f0f4f5;
-  --color-accent: #13c8ec;
-  --color-accent-hover: #0ea5c6;
+  --color-accent: #0aa3c4;
+  --color-accent-hover: #087a94;
   --color-success: #16a34a;
   --color-error: #dc2626;
   --color-warning: #f59e0b;
@@ -38,9 +40,9 @@
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-card: 0 0 4px rgba(0, 0, 0, 0.05), 0 4px 12px rgba(0, 0, 0, 0.05);
-  --shadow-soft: 0 4px 20px -2px rgba(19, 200, 236, 0.12);
+  --shadow-soft: 0 4px 20px -2px rgba(var(--color-primary-rgb), 0.12);
   --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.1);
-  --shadow-primary: 0 4px 14px rgba(19, 200, 236, 0.35);
+  --shadow-primary: 0 4px 14px rgba(var(--color-primary-rgb), 0.35);
 
   /* Borders */
   --border-width: 1px;

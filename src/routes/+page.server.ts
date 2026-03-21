@@ -69,6 +69,12 @@ export const load = (async ({ locals: { supabase } }) => {
 		reviewer_name: reviewerProfiles[r.user_id] ?? 'Anonymous'
 	}));
 
+	const { data: homeTrustRow } = await supabase
+		.from('site_settings')
+		.select('value')
+		.eq('key', 'home_trust_image_url')
+		.maybeSingle();
+
 	const mockGalleryImages = [
 		{
 			id: 'mock-1',
@@ -104,7 +110,8 @@ export const load = (async ({ locals: { supabase } }) => {
 		activeGallery,
 		galleryImages: galleryImages && galleryImages.length > 0 ? galleryImages : mockGalleryImages,
 		featuredTours: featuredTours ?? [],
-		recentReviews: enrichedReviews
+		recentReviews: enrichedReviews,
+		homeTrustImageUrl: homeTrustRow?.value?.trim() ? homeTrustRow.value : null
 	};
 }) satisfies PageServerLoad;
 

@@ -607,7 +607,7 @@
 	.wizard__textarea:focus {
 		outline: none;
 		border-color: var(--color-primary);
-		box-shadow: 0 0 0 3px rgba(19, 200, 236, 0.15);
+		box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
 	}
 
 	.wizard__textarea {
@@ -729,11 +729,12 @@
 	.wizard__btn--next {
 		background: var(--color-primary);
 		color: white;
-		border-color: var(--color-primary);
+		border-color: var(--color-primary-border);
 	}
 
 	.wizard__btn--next:hover:not(:disabled) {
 		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
 	}
 
 	.wizard__submit-group {
@@ -752,12 +753,13 @@
 	.wizard__btn--publish {
 		background: var(--color-primary);
 		color: white;
-		border-color: var(--color-primary);
+		border-color: var(--color-primary-border);
 		box-shadow: var(--shadow-primary);
 	}
 
 	.wizard__btn--publish:hover {
 		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
 	}
 
 	.wizard__form {

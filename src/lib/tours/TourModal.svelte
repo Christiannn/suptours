@@ -472,7 +472,7 @@
 		gap: 0.5rem;
 		width: 100%;
 		padding: 0.85rem;
-		border: none;
+		border: 1px solid var(--color-primary-border);
 		border-radius: var(--border-radius-full);
 		background: var(--color-primary);
 		color: white;
@@ -487,6 +487,7 @@
 
 	.modal__join-btn:hover {
 		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
 		text-decoration: none;
 	}
 
@@ -497,11 +498,13 @@
 	.modal__join-btn--joined {
 		background: var(--color-bg-muted);
 		color: var(--color-text-muted);
+		border-color: var(--color-border);
 		box-shadow: none;
 	}
 
 	.modal__join-btn--joined:hover {
 		background: var(--color-error);
 		color: white;
+		border-color: var(--color-error);
 	}
 </style>

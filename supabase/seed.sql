@@ -1,11 +1,71 @@
 -- Seed data for development
--- Run after at least one user exists, or create test users first via Supabase Auth
+--
+-- Dev admin: admin@suptours.dk / password
+-- GoTrue kræver både auth.users OG auth.identities for email/password-login.
+-- Kun at indsætte i auth.users (som tidligere) giver "Invalid login credentials".
 
--- Create a test user
-INSERT INTO auth.users (id, instance_id, email, encrypted_password, email_confirmed_at, recovery_sent_at, last_sign_in_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, created_at, updated_at, confirmation_token, email_change, email_change_sent_at, phone, phone_confirmed_at, phone_change, phone_change_sent_at, email_change_token_current, email_change_confirm_status, banned_until, reauthentication_token, reauthentication_sent_at, is_sso_user, deleted_at)
-VALUES
-  ('00000000-0000-0000-0000-000000000000', '00000000-0000-0000-0000-000000000000', 'admin@suptours.dk', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', now(), now(), now(), '{"provider":"email","providers":["email"]}', '{"display_name":"Admin User"}', false, now(), now(), '', '', now(), NULL, NULL, '', now(), '', 0, NULL, '', now(), false, NULL)
-ON CONFLICT (id) DO NOTHING;
+DO $$
+DECLARE
+  admin_uid uuid := '00000000-0000-0000-0000-000000000000';
+  inst uuid := '00000000-0000-0000-0000-000000000000';
+  admin_email text := 'admin@suptours.dk';
+  pw text := crypt('password', gen_salt('bf'));
+BEGIN
+  INSERT INTO auth.users (
+    id, instance_id, aud, role, email, encrypted_password,
+    email_confirmed_at, confirmation_token, recovery_token,
+    email_change_token_new, email_change,
+    last_sign_in_at, raw_app_meta_data, raw_user_meta_data,
+    is_super_admin, created_at, updated_at,
+    phone, phone_confirmed_at, phone_change, phone_change_sent_at,
+    email_change_token_current, email_change_confirm_status,
+    banned_until, reauthentication_token, reauthentication_sent_at,
+    is_sso_user, deleted_at, is_anonymous
+  )
+  VALUES (
+    admin_uid, inst, 'authenticated', 'authenticated', admin_email, pw,
+    now(), '', '', '', '',
+    now(),
+    '{"provider":"email","providers":["email"]}'::jsonb,
+    '{"display_name":"Admin User"}'::jsonb,
+    false, now(), now(),
+    null, null, '', now(),
+    '', 0,
+    null, '', now(),
+    false, null, false
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    encrypted_password = EXCLUDED.encrypted_password,
+    email_confirmed_at = EXCLUDED.email_confirmed_at,
+    aud = EXCLUDED.aud,
+    role = EXCLUDED.role,
+    raw_app_meta_data = EXCLUDED.raw_app_meta_data,
+    raw_user_meta_data = EXCLUDED.raw_user_meta_data,
+    updated_at = now();
+
+  INSERT INTO auth.identities (
+    id, user_id, identity_data, provider, provider_id, last_sign_in_at, created_at, updated_at
+  )
+  VALUES (
+    gen_random_uuid(),
+    admin_uid,
+    jsonb_build_object(
+      'sub', admin_uid::text,
+      'email', admin_email,
+      'email_verified', true,
+      'phone_verified', false
+    ),
+    'email',
+    admin_email,
+    now(), now(), now()
+  )
+  ON CONFLICT (provider_id, provider) DO UPDATE SET
+    user_id = EXCLUDED.user_id,
+    identity_data = EXCLUDED.identity_data,
+    updated_at = now();
+
+  UPDATE public.profiles SET is_admin = true WHERE id = admin_uid;
+END $$;
 
 -- Insert sample tours (uses the first profile as creator)
 -- If no profile exists yet, these will silently fail; re-run after first user signup.

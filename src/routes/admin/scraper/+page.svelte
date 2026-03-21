@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
+	import { loadStoredAiPrefs, prefsToApiBody } from '$lib/admin/aiPreferences';
 
 	let { data } = $props();
 
@@ -12,6 +13,89 @@
 	let scraping = $state(false);
 	let searchResult = $state<{ ok: boolean; sourcesFound?: number; error?: string } | null>(null);
 	let scrapeResult = $state<{ ok: boolean; eventsCreated?: number; error?: string } | null>(null);
+
+	/** Integrationstest modal */
+	let testDialog = $state<HTMLDialogElement | null>(null);
+	let testRunning = $state(false);
+	type TestStep = {
+		step: number;
+		title: string;
+		ok: boolean;
+		detail?: string;
+		error?: string;
+		payload?: unknown;
+	};
+	let testSteps = $state<TestStep[]>([]);
+	let testFinalMessage = $state<string | null>(null);
+	let testHttpError = $state<string | null>(null);
+
+	function openTestModal() {
+		testSteps = [];
+		testFinalMessage = null;
+		testHttpError = null;
+		testDialog?.showModal();
+	}
+
+	function closeTestModal() {
+		testDialog?.close();
+	}
+
+	async function runIntegrationTest() {
+		testRunning = true;
+		testSteps = [];
+		testFinalMessage = null;
+		testHttpError = null;
+		console.log('[scraper-test] Starter — sender Agenter-valg (prefs) til server');
+		try {
+			const body = prefsToApiBody(loadStoredAiPrefs());
+			console.log('[scraper-test] Request body (provider/tier/model)', body);
+			const res = await fetch('/api/admin/scraper-test', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body),
+			});
+			let json: {
+				ok?: boolean;
+				steps?: TestStep[];
+				finalMessage?: string | null;
+				message?: string;
+			};
+			try {
+				json = await res.json();
+			} catch (e) {
+				console.error('[scraper-test] Kunne ikke parse JSON', e);
+				testHttpError = 'Ugyldigt svar fra server';
+				return;
+			}
+			console.log('[scraper-test] HTTP', res.status, json);
+			const steps = json.steps ?? [];
+			for (const s of steps) {
+				const line = `[scraper-test] Step ${s.step}: ${s.title} — ${s.ok ? 'OK' : 'FEJL'}`;
+				if (s.ok) {
+					console.log(line, s.detail ?? '', s.payload ?? '');
+				} else {
+					console.error(line, s.error ?? '');
+				}
+			}
+			testSteps = steps;
+			testFinalMessage = json.finalMessage ?? null;
+			if (!res.ok) {
+				testHttpError = json.message ?? `HTTP ${res.status}`;
+				console.error('[scraper-test] Request fejlede', testHttpError);
+			} else if (!json.ok) {
+				const failed = steps.find((t) => !t.ok);
+				testHttpError = failed?.error ?? 'Test stoppede med fejl';
+				console.error('[scraper-test] Test ikke ok', testHttpError);
+			} else {
+				console.log('[scraper-test] Færdig — slutbesked længde', (testFinalMessage ?? '').length);
+			}
+		} catch (e) {
+			console.error('[scraper-test] Netværksfejl', e);
+			testHttpError = String(e);
+		} finally {
+			testRunning = false;
+		}
+	}
 
 	function fmtDate(d: string | null) {
 		if (!d) return '—';
@@ -36,7 +120,11 @@
 		searching = true;
 		searchResult = null;
 		try {
-			const res = await fetch('/api/scraper/search', { method: 'POST' });
+			const res = await fetch('/api/scraper/search', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(prefsToApiBody(loadStoredAiPrefs())),
+			});
 			const json = await res.json();
 			searchResult = res.ok ? { ok: true, sourcesFound: json.sourcesFound } : { ok: false, error: json.message ?? 'Fejl' };
 			if (res.ok) await invalidateAll();
@@ -51,7 +139,11 @@
 		scraping = true;
 		scrapeResult = null;
 		try {
-			const res = await fetch('/api/scraper/scrape', { method: 'POST' });
+			const res = await fetch('/api/scraper/scrape', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(prefsToApiBody(loadStoredAiPrefs())),
+			});
 			const json = await res.json();
 			scrapeResult = res.ok ? { ok: true, eventsCreated: json.eventsCreated } : { ok: false, error: json.message ?? 'Fejl' };
 			if (res.ok) await invalidateAll();
@@ -76,7 +168,8 @@
 		<h1>Event Scraper</h1>
 		<p class="scraper__sub">
 			{data.sources.length} kilder ·
-			{data.drafts.length} kladder afventer godkendelse
+			{data.drafts.length} kladder afventer godkendelse ·
+			<a href={resolve('/admin/agents')}>AI-model</a>
 		</p>
 	</div>
 
@@ -88,7 +181,7 @@
 			</div>
 			<div class="action-card__body">
 				<strong>Fase 1 – Søg efter kilder</strong>
-				<p>Brug Claude + Brave Search til at finde nye SUP-event websites i Danmark og gem dem som aktive kilder.</p>
+				<p>Brug den valgte agent (under <a href={resolve('/admin/agents')}>Agenter</a>) + Brave Search til at finde nye SUP-event websites i Danmark og gem dem som aktive kilder.</p>
 				{#if searchResult}
 					<p class="action-card__result" class:action-card__result--ok={searchResult.ok} class:action-card__result--err={!searchResult.ok}>
 						{#if searchResult.ok}
@@ -118,7 +211,7 @@
 			</div>
 			<div class="action-card__body">
 				<strong>Fase 2 – Skrab arrangementer</strong>
-				<p>Besøg alle aktive kilder og lad Claude udtrække SUP-arrangementer som kladder til din godkendelse.</p>
+				<p>Besøg alle aktive kilder og lad den valgte AI udtrække SUP-arrangementer som kladder til din godkendelse.</p>
 				{#if scrapeResult}
 					<p class="action-card__result" class:action-card__result--ok={scrapeResult.ok} class:action-card__result--err={!scrapeResult.ok}>
 						{#if scrapeResult.ok}
@@ -141,6 +234,21 @@
 				{/if}
 			</button>
 		</div>
+	</div>
+
+	<div class="integration-test-bar">
+		<button
+			type="button"
+			class="btn-test"
+			onclick={openTestModal}
+			disabled={searching || scraping}
+		>
+			<span class="material-symbols-outlined">science</span>
+			Integrationstest (Brave + AI)
+		</button>
+		<p class="integration-test-bar__hint">
+			Tjekker nøgler, Brave-søgning &quot;SUPTOUR&quot; (top 1) og AI-beskrivelse — se browserkonsollen for fuld log.
+		</p>
 	</div>
 
 	<!-- Tabs -->
@@ -314,6 +422,60 @@
 	{/if}
 </div>
 
+<dialog bind:this={testDialog} class="test-modal" aria-labelledby="test-modal-title">
+	<div class="test-modal__inner">
+		<header class="test-modal__head">
+			<h2 id="test-modal-title">Integrationstest</h2>
+			<button type="button" class="test-modal__close" onclick={closeTestModal} aria-label="Luk">
+				<span class="material-symbols-outlined">close</span>
+			</button>
+		</header>
+		<p class="test-modal__intro">
+			Bruger dit valg under <a href={resolve('/admin/agents')}>Agenter</a> og serverens <code>.env</code>-nøgler.
+			Alle trin logges i konsollen (<code>[scraper-test]</code>).
+		</p>
+		<button
+			type="button"
+			class="btn-run btn-run--test"
+			onclick={runIntegrationTest}
+			disabled={testRunning}
+		>
+			{#if testRunning}
+				<span class="spinner"></span>
+				Kører…
+			{:else}
+				<span class="material-symbols-outlined">play_arrow</span>
+				Start test
+			{/if}
+		</button>
+		{#if testHttpError}
+			<p class="test-modal__err" role="alert">{testHttpError}</p>
+		{/if}
+		{#if testSteps.length > 0}
+			<div class="test-modal__steps">
+				<h3>Trin</h3>
+				{#each testSteps as st (st.step)}
+					<div class="test-step" class:test-step--ok={st.ok} class:test-step--bad={!st.ok}>
+						<strong>{st.step}. {st.title}</strong>
+						{#if st.ok && st.detail}
+							<pre class="test-step__pre">{st.detail}</pre>
+						{/if}
+						{#if !st.ok && st.error}
+							<pre class="test-step__pre test-step__pre--err">{st.error}</pre>
+						{/if}
+					</div>
+				{/each}
+			</div>
+		{/if}
+		{#if testFinalMessage}
+			<div class="test-modal__final">
+				<h3>Slutbesked</h3>
+				<pre class="test-modal__final-pre">{testFinalMessage}</pre>
+			</div>
+		{/if}
+	</div>
+</dialog>
+
 <style>
 	.scraper {
 		max-width: 960px;
@@ -397,7 +559,7 @@
 		padding: 0.6rem 1.2rem;
 		background: var(--color-primary);
 		color: white;
-		border: none;
+		border: 1px solid var(--color-primary-border);
 		border-radius: var(--border-radius-full);
 		font: inherit;
 		font-size: var(--font-size-sm);
@@ -407,10 +569,19 @@
 		align-self: flex-start;
 	}
 	.btn-run:disabled { opacity: 0.5; cursor: not-allowed; }
-	.btn-run:not(:disabled):hover { background: var(--color-primary-dark, #0056b3); }
+	.btn-run:not(:disabled):hover {
+		background: var(--color-primary-dark, #0056b3);
+		border-color: var(--color-primary-border);
+	}
 	.btn-run .material-symbols-outlined { font-size: 18px; }
-	.btn-run--scrape { background: #7c3aed; }
-	.btn-run--scrape:not(:disabled):hover { background: #6d28d9; }
+	.btn-run--scrape {
+		background: #7c3aed;
+		border-color: #4c1d95;
+	}
+	.btn-run--scrape:not(:disabled):hover {
+		background: #6d28d9;
+		border-color: #4c1d95;
+	}
 
 	/* ── Spinner ── */
 	.spinner {
@@ -662,5 +833,137 @@
 		background: rgba(239,68,68,0.05);
 		padding: 0.3rem 0.5rem;
 		border-radius: var(--border-radius);
+	}
+
+	/* ── Integration test ── */
+	.integration-test-bar {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.75rem 1rem;
+		margin-bottom: 1.5rem;
+		padding: 0.75rem 1rem;
+		background: rgba(14, 165, 233, 0.06);
+		border: 1px solid rgba(14, 165, 233, 0.25);
+		border-radius: var(--border-radius-lg);
+	}
+	.btn-test {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		padding: 0.45rem 0.9rem;
+		background: #0ea5e9;
+		color: white;
+		border: 1px solid #0284c7;
+		border-radius: var(--border-radius-full);
+		font: inherit;
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.btn-test:disabled { opacity: 0.5; cursor: not-allowed; }
+	.btn-test .material-symbols-outlined { font-size: 18px; }
+	.integration-test-bar__hint {
+		margin: 0;
+		font-size: var(--font-size-xs);
+		color: var(--color-text-muted);
+		max-width: 42rem;
+		line-height: 1.4;
+	}
+
+	.test-modal {
+		max-width: min(640px, 96vw);
+		border: var(--border-width) solid var(--color-border-light);
+		border-radius: var(--border-radius-lg);
+		padding: 0;
+		background: var(--color-surface);
+	}
+	.test-modal::backdrop {
+		background: rgba(0, 0, 0, 0.45);
+	}
+	.test-modal__inner {
+		padding: 1.25rem;
+		max-height: min(85vh, 720px);
+		overflow: auto;
+	}
+	.test-modal__head {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+	.test-modal__head h2 {
+		margin: 0;
+		font-size: 1.15rem;
+	}
+	.test-modal__close {
+		background: none;
+		border: none;
+		padding: 0.2rem;
+		cursor: pointer;
+		color: var(--color-text-muted);
+		border-radius: var(--border-radius);
+		line-height: 0;
+	}
+	.test-modal__close:hover {
+		background: var(--color-bg-muted);
+		color: var(--color-text);
+	}
+	.test-modal__intro {
+		font-size: var(--font-size-sm);
+		color: var(--color-text-muted);
+		margin: 0 0 1rem;
+		line-height: 1.45;
+	}
+	.test-modal__intro code { font-size: 0.85em; }
+	.btn-run--test {
+		background: #0ea5e9;
+		border-color: #0284c7;
+		margin-bottom: 0.75rem;
+	}
+	.btn-run--test:not(:disabled):hover {
+		background: #0284c7;
+	}
+	.test-modal__err {
+		color: #b91c1c;
+		font-size: var(--font-size-sm);
+		margin: 0 0 0.75rem;
+	}
+	.test-modal__steps h3,
+	.test-modal__final h3 {
+		font-size: var(--font-size-sm);
+		margin: 0.75rem 0 0.35rem;
+	}
+	.test-step {
+		margin-bottom: 0.5rem;
+		padding: 0.5rem 0.65rem;
+		border-radius: var(--border-radius);
+		border: 1px solid var(--color-border-light);
+		font-size: var(--font-size-xs);
+	}
+	.test-step--ok { border-left: 3px solid #16a34a; }
+	.test-step--bad { border-left: 3px solid #dc2626; }
+	.test-step__pre {
+		margin: 0.35rem 0 0;
+		white-space: pre-wrap;
+		word-break: break-word;
+		font-size: 0.75rem;
+		max-height: 12rem;
+		overflow: auto;
+	}
+	.test-step__pre--err {
+		color: #b91c1c;
+	}
+	.test-modal__final-pre {
+		margin: 0;
+		white-space: pre-wrap;
+		word-break: break-word;
+		font-size: var(--font-size-sm);
+		padding: 0.75rem;
+		background: var(--color-bg-muted);
+		border-radius: var(--border-radius);
+		max-height: 16rem;
+		overflow: auto;
 	}
 </style>

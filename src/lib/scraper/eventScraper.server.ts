@@ -2,13 +2,13 @@
  * eventScraper.server.ts
  *
  * Phase 2 – Event extraction.
- * Fetches each active source URL, strips HTML to plain text, then asks Claude
- * to extract structured SUP-event data ready to be stored as a draft tour.
+ * Fetches each active source URL, strips HTML to plain text, then asks the
+ * configured AI (Gemini or Claude) to extract structured SUP-event data.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import type { AiScraperConfig } from './aiScraperConfig';
+import { DEFAULT_AI_CONFIG } from './aiScraperConfig';
+import { generateAiText } from './generateAiText.server';
 
 export interface ExtractedEvent {
 	title: string;
@@ -25,20 +25,20 @@ export interface ExtractedEvent {
 }
 
 /**
- * Fetch a URL, extract text, and ask Claude to find all upcoming SUP events.
- * Returns an empty array if the page is unreachable or contains no events.
+ * Fetch a URL, extract text, and ask the AI to find all upcoming SUP events.
  */
-export async function scrapeEventsFromUrl(url: string): Promise<ExtractedEvent[]> {
+export async function scrapeEventsFromUrl(
+	url: string,
+	config: AiScraperConfig = DEFAULT_AI_CONFIG,
+): Promise<ExtractedEvent[]> {
 	const html = await fetchPage(url);
 	if (!html) return [];
 
 	const text = htmlToText(html);
 	if (text.length < 100) return [];
 
-	return extractEventsWithClaude(text, url);
+	return extractEventsWithAi(text, url, config);
 }
-
-// ─── HTTP fetch ───────────────────────────────────────────────────────────────
 
 async function fetchPage(url: string): Promise<string | null> {
 	try {
@@ -68,14 +68,13 @@ function htmlToText(html: string): string {
 		.replace(/&gt;/gi, '>')
 		.replace(/\s{2,}/g, ' ')
 		.trim()
-		.slice(0, 10_000); // cap to ~10k chars to stay within context limits
+		.slice(0, 10_000);
 }
 
-// ─── Claude extraction ────────────────────────────────────────────────────────
-
-async function extractEventsWithClaude(
+async function extractEventsWithAi(
 	pageText: string,
-	sourceUrl: string
+	sourceUrl: string,
+	config: AiScraperConfig,
 ): Promise<ExtractedEvent[]> {
 	const currentYear = new Date().getFullYear();
 
@@ -114,25 +113,18 @@ Returner et JSON-array – intet andet:
 Hvis der ikke er nogen SUP-arrangementer på siden, returner [].
 `;
 
-	const response = await anthropic.messages.create({
-		model: 'claude-sonnet-4-6',
-		max_tokens: 4096,
-		messages: [{ role: 'user', content: prompt }],
-	});
-
-	const text = response.content[0].type === 'text' ? response.content[0].text : '';
+	const text = await generateAiText(prompt, config);
 
 	try {
 		const match = text.match(/\[[\s\S]*\]/);
 		if (!match) return [];
 		const events = JSON.parse(match[0]) as ExtractedEvent[];
-		// Ensure tags always contains 'sup'
 		return events.map((e) => ({
 			...e,
 			tags: Array.from(new Set(['sup', ...(e.tags ?? [])])),
 		}));
 	} catch {
-		console.error('Failed to parse Claude event response:', text.slice(0, 500));
+		console.error('Failed to parse AI event response:', text.slice(0, 500));
 		return [];
 	}
 }
