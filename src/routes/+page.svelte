@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { enhance } from '$app/forms';
 	import GallarySlider from '$lib/Shared/GallarySlider.svelte';
+	import { getTourShowSlug } from '$lib/tours/tourSlug';
 
 	let { data, form } = $props();
 </script>
@@ -96,7 +97,10 @@
 			</div>
 			<div class="featured-tours">
 				{#each data.featuredTours as tour (tour.id)}
-					<a href={resolve('/tours/[id]', { id: tour.id })} class="featured-tour-card">
+					<a
+						href={`${resolve('/tours')}?show=${encodeURIComponent(getTourShowSlug(tour))}`}
+						class="featured-tour-card"
+					>
 						<div class="featured-tour-card__image-wrap">
 							<img
 								src={tour.image_url || 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=400&q=80'}

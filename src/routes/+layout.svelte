@@ -114,23 +114,23 @@
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div class="mobile-overlay" onclick={() => mobileMenuOpen = false} onkeydown={() => {}}></div>
 		<nav class="mobile-menu">
-			<a href={resolve('/')} onclick={() => mobileMenuOpen = false}>Home</a>
-			<a href={resolve('/tours')} onclick={() => mobileMenuOpen = false}>Tours</a>
-			<a href={resolve('/community')} onclick={() => mobileMenuOpen = false}>Community</a>
-			<a href={resolve('/marketplace')} onclick={() => mobileMenuOpen = false}>Market</a>
-			<a href={resolve('/blog')} onclick={() => mobileMenuOpen = false}>Blog</a>
+			<a href={resolve('/')} onclick={() => mobileMenuOpen = false} aria-label="Go to Home">Home</a>
+			<a href={resolve('/tours')} onclick={() => mobileMenuOpen = false} aria-label="Go to Tours">Tours</a>
+			<a href={resolve('/community')} onclick={() => mobileMenuOpen = false} aria-label="Go to Community">Community</a>
+			<a href={resolve('/marketplace')} onclick={() => mobileMenuOpen = false} aria-label="Go to Market">Market</a>
+			<a href={resolve('/blog')} onclick={() => mobileMenuOpen = false} aria-label="Go to Blog">Blog</a>
 			<hr />
 			{#if data.user}
-				<a href={resolve('/profile')} onclick={() => mobileMenuOpen = false}>Profile</a>
+				<a href={resolve('/profile')} onclick={() => mobileMenuOpen = false} aria-label="Go to Profile">Profile</a>
 				{#if data.isAdmin}
-					<a href={resolve('/admin')} onclick={() => mobileMenuOpen = false}>Admin</a>
+					<a href={resolve('/admin')} onclick={() => mobileMenuOpen = false} aria-label="Go to Admin">Admin</a>
 				{/if}
 				<form method="POST" action={resolve('/logout')}>
-					<button type="submit">Log out</button>
+					<button type="submit" aria-label="Log out">Log out</button>
 				</form>
 			{:else}
-				<a href={resolve('/login')} onclick={() => mobileMenuOpen = false}>Log in</a>
-				<a href={resolve('/signup')} onclick={() => mobileMenuOpen = false}>Sign up</a>
+				<a href={resolve('/login')} onclick={() => mobileMenuOpen = false} aria-label="Go to Log in">Log in</a>
+				<a href={resolve('/signup')} onclick={() => mobileMenuOpen = false} aria-label="Go to Sign up">Sign up</a>
 			{/if}
 		</nav>
 	{/if}
@@ -154,20 +154,20 @@
 
 	<!-- Mobile Bottom Navigation -->
 	<nav class="bottom-nav">
-		<a href={resolve('/tours')} class="bottom-nav-item" class:active={activeSection === 'tours'}>
+		<a href={resolve('/tours')} class="bottom-nav-item" class:active={activeSection === 'tours'} aria-label="Open Tours">
 			<span class="material-symbols-outlined">calendar_month</span>
 			<span class="bottom-nav-label">Tours</span>
 		</a>
-		<a href={resolve('/')} class="bottom-nav-item" class:active={activeSection === 'home'}>
+		<a href={resolve('/')} class="bottom-nav-item" class:active={activeSection === 'home'} aria-label="Open Explore">
 			<span class="material-symbols-outlined">explore</span>
 			<span class="bottom-nav-label">Explore</span>
 		</a>
 		{#if data.user}
-			<a href={resolve('/tours/new')} class="bottom-nav-item bottom-nav-fab">
+			<a href={resolve('/tours/new')} class="bottom-nav-item bottom-nav-fab" aria-label="Create new tour">
 				<span class="material-symbols-outlined">add</span>
 			</a>
 		{/if}
-		<a href={resolve('/community')} class="bottom-nav-item" class:active={activeSection === 'community'}>
+		<a href={resolve('/community')} class="bottom-nav-item" class:active={activeSection === 'community'} aria-label="Open Community">
 			<span class="material-symbols-outlined">forum</span>
 			<span class="bottom-nav-label">Community</span>
 		</a>
@@ -175,8 +175,13 @@
 			href={data.user ? resolve('/profile') : `${resolve('/login')}?next=%2Fprofile`}
 			class="bottom-nav-item"
 			class:active={activeSection === 'profile'}
+			aria-label={data.user ? 'Open Profile' : 'Open Log in'}
 		>
-			<span class="material-symbols-outlined">account_circle</span>
+			{#if data.user && data.profileAvatarUrl}
+				<img src={data.profileAvatarUrl} alt="" class="bottom-nav-avatar" />
+			{:else}
+				<span class="material-symbols-outlined">account_circle</span>
+			{/if}
 			<span class="bottom-nav-label">{data.user ? 'Profile' : 'Log in'}</span>
 		</a>
 	</nav>
@@ -507,6 +512,16 @@
 
 	.bottom-nav-item .material-symbols-outlined {
 		font-size: 24px;
+	}
+
+	.bottom-nav-avatar {
+		width: 24px;
+		height: 24px;
+		display: block;
+		object-fit: cover;
+		border-radius: var(--border-radius-full);
+		border: 1px solid var(--color-border);
+		background: var(--color-bg-muted);
 	}
 
 	.bottom-nav-label {

@@ -27,52 +27,54 @@
 		</section>
 
 		<section class="section">
-			<h2>Team roles</h2>
-			<ul class="role-list">
-				{#each data.team.team_roles ?? [] as role (role.id)}
-					<li>
-						<form method="POST" action="?/updateRoleDef" use:enhance class="role-edit-form">
-							<input type="hidden" name="role_id" value={role.id} />
-							<input name="role_name" value={role.name} aria-label="Role name" required />
-							<input
-								name="role_description"
-								value={role.description ?? ''}
-								aria-label="Role description"
-								placeholder="Description"
-							/>
-							<select name="content_edit_level">
-								<option value="read" selected={role.content_edit_level === 'read'}>read</option>
-								<option value="edit" selected={role.content_edit_level === 'edit'}>edit</option>
-								<option value="super" selected={role.content_edit_level === 'super'}>super</option>
-							</select>
-							<button type="submit">Save role</button>
-						</form>
-						<form method="POST" action="?/deleteRole" use:enhance class="inline-form">
-							<input type="hidden" name="role_id" value={role.id} />
-							<button type="submit" class="danger">Delete role</button>
-						</form>
-					</li>
-				{/each}
-			</ul>
-			<form method="POST" action="?/createRole" use:enhance class="create-role-form">
-				<input name="role_name" placeholder="Role name" required />
-				<input name="role_description" placeholder="Description (optional)" />
-				<select name="content_edit_level">
-					<option value="read">read</option>
-					<option value="edit">edit</option>
-					<option value="super">super</option>
-				</select>
-				<button type="submit" class="primary">Create role</button>
-			</form>
-			{#if form?.roleCreateMessage}
-				<p class="message" class:success={form?.roleCreateSuccess}>{form.roleCreateMessage}</p>
-			{/if}
-			{#if form?.roleEditMessage}
-				<p class="message" class:success={form?.roleEditSuccess}>{form.roleEditMessage}</p>
-			{/if}
-			{#if form?.roleDeleteMessage}
-				<p class="message" class:success={form?.roleDeleteSuccess}>{form.roleDeleteMessage}</p>
-			{/if}
+			<details class="roles-collapse">
+				<summary class="roles-collapse__summary">Team roles</summary>
+				<ul class="role-list">
+					{#each data.team.team_roles ?? [] as role (role.id)}
+						<li>
+							<form method="POST" action="?/updateRoleDef" use:enhance class="role-edit-form">
+								<input type="hidden" name="role_id" value={role.id} />
+								<input name="role_name" value={role.name} aria-label="Role name" required />
+								<input
+									name="role_description"
+									value={role.description ?? ''}
+									aria-label="Role description"
+									placeholder="Description"
+								/>
+								<select name="content_edit_level">
+									<option value="read" selected={role.content_edit_level === 'read'}>read</option>
+									<option value="edit" selected={role.content_edit_level === 'edit'}>edit</option>
+									<option value="super" selected={role.content_edit_level === 'super'}>super</option>
+								</select>
+								<button type="submit">Save role</button>
+							</form>
+							<form method="POST" action="?/deleteRole" use:enhance class="inline-form role-delete-form">
+								<input type="hidden" name="role_id" value={role.id} />
+								<button type="submit" class="danger">Delete role</button>
+							</form>
+						</li>
+					{/each}
+				</ul>
+				<form method="POST" action="?/createRole" use:enhance class="create-role-form">
+					<input name="role_name" placeholder="Role name" required />
+					<input name="role_description" placeholder="Description (optional)" />
+					<select name="content_edit_level">
+						<option value="read">read</option>
+						<option value="edit">edit</option>
+						<option value="super">super</option>
+					</select>
+					<button type="submit" class="primary">Create role</button>
+				</form>
+				{#if form?.roleCreateMessage}
+					<p class="message" class:success={form?.roleCreateSuccess}>{form.roleCreateMessage}</p>
+				{/if}
+				{#if form?.roleEditMessage}
+					<p class="message" class:success={form?.roleEditSuccess}>{form.roleEditMessage}</p>
+				{/if}
+				{#if form?.roleDeleteMessage}
+					<p class="message" class:success={form?.roleDeleteSuccess}>{form.roleDeleteMessage}</p>
+				{/if}
+			</details>
 		</section>
 	{/if}
 
@@ -118,7 +120,7 @@
 <style>
 	.team-detail-page {
 		padding: var(--section-padding);
-		max-width: 48rem;
+		max-width: 74rem;
 	}
 
 	.back-link {
@@ -142,10 +144,11 @@
 
 	.role-edit-form {
 		display: inline-flex;
-		flex-wrap: wrap;
+		flex-wrap: nowrap;
 		gap: 0.5rem;
 		align-items: center;
 		flex: 1;
+		min-width: 42rem;
 	}
 
 	.add-member-form input,
@@ -185,6 +188,11 @@
 		gap: 0.5rem;
 	}
 
+	.role-list li {
+		flex-wrap: nowrap;
+		overflow-x: auto;
+	}
+
 	.member-role {
 		font-size: var(--font-size-sm);
 		color: var(--color-text-muted);
@@ -195,6 +203,34 @@
 		gap: 0.25rem;
 		margin-left: auto;
 		align-items: center;
+	}
+
+	.role-delete-form {
+		margin-left: 0;
+	}
+
+	.role-edit-form input[name='role_name'] {
+		min-width: 10rem;
+	}
+
+	.role-edit-form input[name='role_description'] {
+		min-width: 16rem;
+	}
+
+	.roles-collapse {
+		border: var(--border-width) solid var(--color-border);
+		border-radius: var(--border-radius);
+		padding: 0.5rem 0.75rem;
+	}
+
+	.roles-collapse__summary {
+		cursor: pointer;
+		font-weight: 700;
+		user-select: none;
+	}
+
+	.roles-collapse[open] .roles-collapse__summary {
+		margin-bottom: 0.75rem;
 	}
 
 	.message {

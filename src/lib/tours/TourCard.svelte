@@ -23,7 +23,11 @@
 		};
 	});
 
-	const sourceBadge = $derived(tour.source === 'web' ? 'Official Event' : 'Community');
+	const sourceBadge = $derived.by(() => {
+		if (tour.source === 'web') return 'Official Event';
+		if (tour.team_name) return tour.team_name;
+		return 'Community';
+	});
 
 	const placeholderImages = [
 		'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80',

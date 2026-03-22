@@ -203,8 +203,15 @@
 							{#if product.price_label} | {product.price_label}{/if}
 							{#if product.address} | {product.address}{/if}
 						</p>
-						<a href={product.url} target="_blank" rel="noopener" onclick={(e) => e.stopPropagation()}>
-							Open link
+						<a
+							class="card__link-box"
+							href={product.url}
+							target="_blank"
+							rel="noopener"
+							title={product.url}
+							onclick={(e) => e.stopPropagation()}
+						>
+							{product.url}
 						</a>
 					</div>
 				</div>
@@ -475,15 +482,27 @@
 		color: var(--color-text-muted);
 	}
 
-	.card__meta a {
-		align-self: flex-start;
-		padding: 0.35rem 0.7rem;
+	.card__link-box {
+		display: block;
+		width: 100%;
+		padding: 0.45rem 0.6rem;
 		border-radius: var(--border-radius-full);
 		border: 1px solid var(--color-primary-border);
+		background: rgba(var(--color-primary-rgb), 0.1);
+		color: var(--color-primary);
+		font-size: var(--font-size-xs);
+		font-weight: 600;
+		text-decoration: none;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+	}
+
+	.card__link-box:hover {
 		background: var(--color-primary);
 		color: white;
-		font-size: var(--font-size-xs);
-		text-decoration: none;
+		border-color: var(--color-primary-border);
 	}
 
 	.empty {

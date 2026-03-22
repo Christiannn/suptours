@@ -3,6 +3,7 @@
 	import { page } from '$app/state';
 	import TourTagBadge from '$lib/tours/TourTagBadge.svelte';
 	import { buildTourDetailPageJsonLd, safeJsonLdStringify } from '$lib/tours/schemaOrg';
+	import { getTourShowSlug } from '$lib/tours/tourSlug';
 
 	let { data } = $props();
 
@@ -28,6 +29,16 @@
 	const tourJsonLdString = $derived.by(() =>
 		safeJsonLdStringify(buildTourDetailPageJsonLd(page.url.origin, tour)),
 	);
+
+	const sourceBadge = $derived.by(() => {
+		if (tour.source === 'web') return 'Official Event';
+		if (tour.team_name) return tour.team_name;
+		return 'Community';
+	});
+
+	const loginHref = $derived(
+		`/login?next=${encodeURIComponent(`/tours?show=${getTourShowSlug(tour)}`)}`
+	);
 </script>
 
 <svelte:head>
@@ -43,7 +54,7 @@
 		<div class="tour-detail__hero-overlay"></div>
 		<div class="tour-detail__hero-content">
 			<span class="tour-detail__badge" class:tour-detail__badge--official={tour.source === 'web'}>
-				{tour.source === 'web' ? 'Official Event' : 'Community'}
+				{sourceBadge}
 			</span>
 			<h1 class="tour-detail__title">{tour.title}</h1>
 		</div>
@@ -97,11 +108,6 @@
 				<strong>{tour.age_min ?? '—'}–{tour.age_max ?? '—'}</strong>
 				<span>Age range</span>
 			</div>
-			<div class="tour-detail__stat">
-				<span class="material-symbols-outlined">visibility</span>
-				<strong>{tour.view_count}</strong>
-				<span>Views</span>
-			</div>
 		</div>
 
 		{#if tour.security_notes}
@@ -114,9 +120,10 @@
 			</div>
 		{/if}
 
-		{#if tour.responsible_person || tour.contact_info}
+		{#if tour.team_name || tour.responsible_person || tour.contact_info}
 			<div class="tour-detail__section">
 				<h3>Contact</h3>
+				{#if tour.team_name}<p><strong>Host:</strong> {tour.team_name}</p>{/if}
 				{#if tour.responsible_person}<p><strong>Responsible:</strong> {tour.responsible_person}</p>{/if}
 				{#if tour.contact_info}<p><strong>Contact:</strong> {tour.contact_info}</p>{/if}
 			</div>
@@ -170,7 +177,7 @@
 					</button>
 				</form>
 			{:else}
-				<a href="/login?next=/tours/{tour.id}" class="tour-detail__join-btn">
+				<a href={loginHref} class="tour-detail__join-btn">
 					Log in to join
 				</a>
 			{/if}

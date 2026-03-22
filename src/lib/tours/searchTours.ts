@@ -22,8 +22,9 @@ export function searchTours(tours: Tour[], query: string, limit = 10): Tour[] {
 		const desc = (tour.description ?? '').toLowerCase();
 		const loc = (tour.locality ?? '').toLowerCase();
 		const resp = (tour.responsible_person ?? '').toLowerCase();
+		const teamName = (tour.team_name ?? '').toLowerCase();
 		const tags = (tour.tags ?? []).join(' ').toLowerCase();
-		const hay = `${title} ${desc} ${loc} ${resp} ${tags}`;
+		const hay = `${title} ${desc} ${loc} ${resp} ${teamName} ${tags}`;
 
 		const allMatch = tokens.every((tok) => hay.includes(tok));
 		if (!allMatch) continue;

@@ -775,6 +775,7 @@ export type Database = {
           start_time: string | null
           status: Database["public"]["Enums"]["tour_status"]
           tags: string[]
+          team_id: string | null
           title: string
           updated_at: string | null
           view_count: number
@@ -803,6 +804,7 @@ export type Database = {
           start_time?: string | null
           status?: Database["public"]["Enums"]["tour_status"]
           tags?: string[]
+          team_id?: string | null
           title: string
           updated_at?: string | null
           view_count?: number
@@ -831,6 +833,7 @@ export type Database = {
           start_time?: string | null
           status?: Database["public"]["Enums"]["tour_status"]
           tags?: string[]
+          team_id?: string | null
           title?: string
           updated_at?: string | null
           view_count?: number
@@ -841,6 +844,13 @@ export type Database = {
             columns: ["creator_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tours_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]

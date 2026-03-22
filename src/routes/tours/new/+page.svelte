@@ -1,7 +1,7 @@
 <script lang="ts">
 	import TourForm from '$lib/tours/TourForm.svelte';
 
-	let { form } = $props();
+	let { data, form } = $props();
 </script>
 
-<TourForm {form} />
+<TourForm {form} availableTeams={data.availableTeams} />

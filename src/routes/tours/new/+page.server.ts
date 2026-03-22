@@ -2,9 +2,32 @@ import { redirect, fail } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { requireUser } from '$lib/auth/requireUser';
 
+type TeamMembership = {
+	teams: { id: string; name: string } | null;
+	team_roles: { content_edit_level: 'read' | 'edit' | 'super' } | null;
+};
+
+const getAssignableTeams = async (supabase: App.Locals['supabase'], userId: string) => {
+	const { data: memberships } = await supabase
+		.from('team_members')
+		.select('teams(id, name), team_roles(content_edit_level)')
+		.eq('user_id', userId);
+
+	const assignable = new Map<string, { id: string; name: string }>();
+	for (const membership of (memberships ?? []) as TeamMembership[]) {
+		const team = membership.teams;
+		const level = membership.team_roles?.content_edit_level;
+		if (!team || (level !== 'edit' && level !== 'super')) continue;
+		assignable.set(team.id, team);
+	}
+
+	return Array.from(assignable.values());
+};
+
 export const load = (async (event) => {
 	const { user } = await requireUser(event);
-	return { user };
+	const availableTeams = await getAssignableTeams(event.locals.supabase, user.id);
+	return { user, availableTeams };
 }) satisfies PageServerLoad;
 
 export const actions = {
@@ -28,12 +51,26 @@ export const actions = {
 		const responsible_person = (fd.get('responsible_person') as string)?.trim() || null;
 		const contact_info = (fd.get('contact_info') as string)?.trim() || null;
 		const image_url = (fd.get('image_url') as string)?.trim() || null;
+		const team_id_raw = (fd.get('team_id') as string)?.trim() || '';
 		const tags = fd.getAll('tags') as string[];
 		const action = fd.get('action') as string; // 'draft' or 'publish'
+		const team_id = team_id_raw || null;
 
 		// Validation
 		if (!title) return fail(400, { message: 'Title is required' });
 		if (!start_date) return fail(400, { message: 'Start date is required' });
+
+		if (team_id) {
+			const { data: canHostForTeam, error: teamRoleError } = await supabase.rpc('user_has_team_role', {
+				p_team_id: team_id,
+				p_user_id: user.id,
+				p_min_level: 'edit'
+			});
+
+			if (teamRoleError || !canHostForTeam) {
+				return fail(403, { message: 'You are not allowed to host tours for this team.' });
+			}
+		}
 
 		const status = action === 'publish' ? 'published' : 'draft';
 
@@ -55,6 +92,7 @@ export const actions = {
 				responsible_person,
 				contact_info,
 				image_url,
+				team_id,
 				tags,
 				status,
 				source: 'user'

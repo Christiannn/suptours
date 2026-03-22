@@ -6,10 +6,12 @@
 	let { 
 		tour = null, 
 		form = null,
+		availableTeams = [],
 		action = '?/create'
 	}: { 
 		tour?: Tour | null; 
 		form?: any;
+		availableTeams?: { id: string; name: string }[];
 		action?: string;
 	} = $props();
 
@@ -32,6 +34,7 @@
 	let responsiblePerson = $state(tour?.responsible_person ?? '');
 	let contactInfo = $state(tour?.contact_info ?? '');
 	let imageUrl = $state(tour?.image_url ?? '');
+	let selectedTeamId = $state(tour?.team_id ?? '');
 
 	// Image upload state
 	let uploading = $state(false);
@@ -163,6 +166,7 @@
 		<input type="hidden" name="responsible_person" value={responsiblePerson} />
 		<input type="hidden" name="contact_info" value={contactInfo} />
 		<input type="hidden" name="image_url" value={imageUrl} />
+		<input type="hidden" name="team_id" value={selectedTeamId} />
 
 		<!-- Step 1: Basics -->
 		{#if step === 1}
@@ -188,8 +192,8 @@
 					rows="4"
 				></textarea>
 
-				<label class="wizard__label">Tour type tags</label>
-				<div class="wizard__tags">
+				<p class="wizard__label" id="tour-type-tags-label">Tour type tags</p>
+				<div class="wizard__tags" role="group" aria-labelledby="tour-type-tags-label">
 					{#each availableTags as tag (tag)}
 						<button
 							type="button"
@@ -371,6 +375,16 @@
 					placeholder="Phone, email, or social media"
 					class="wizard__input"
 				/>
+
+				{#if availableTeams.length > 0}
+					<label class="wizard__label" for="team_id">Host team (optional)</label>
+					<select id="team_id" bind:value={selectedTeamId} class="wizard__input">
+						<option value="">No team (personal tour)</option>
+						{#each availableTeams as team (team.id)}
+							<option value={team.id}>{team.name}</option>
+						{/each}
+					</select>
+				{/if}
 			</div>
 		{/if}
 
@@ -413,6 +427,11 @@
 					{#if responsiblePerson}
 						<div class="wizard__review-item">
 							<strong>Responsible:</strong> {responsiblePerson}
+						</div>
+					{/if}
+					{#if selectedTeamId}
+						<div class="wizard__review-item">
+							<strong>Host team:</strong> {availableTeams.find((team) => team.id === selectedTeamId)?.name ?? 'Selected team'}
 						</div>
 					{/if}
 				</div>
