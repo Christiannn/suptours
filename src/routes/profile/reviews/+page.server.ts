@@ -1,4 +1,5 @@
 import { fail } from '@sveltejs/kit';
+import { PUBLIC_SUPABASE_URL } from '$env/static/public';
 import { requireUser } from '$lib/auth/requireUser';
 import { loadPendingTourReviews } from '$lib/server/pendingTourReviews';
 import {
@@ -20,12 +21,20 @@ type TourJoinRow = {
 	status: string;
 };
 
+function localTodayYmd(): string {
+	const now = new Date();
+	const year = now.getFullYear();
+	const month = String(now.getMonth() + 1).padStart(2, '0');
+	const day = String(now.getDate()).padStart(2, '0');
+	return `${year}-${month}-${day}`;
+}
+
 async function assertEligibleForReview(
 	supabase: App.Locals['supabase'],
 	userId: string,
 	tourId: string
 ): Promise<{ ok: true; tour: TourJoinRow } | { ok: false; status: number; message: string }> {
-	const today = new Date().toISOString().split('T')[0];
+	const today = localTodayYmd();
 
 	const { data: part } = await supabase
 		.from('tour_participants')
@@ -183,10 +192,12 @@ function isAllowedReviewImageUrl(url: string | null | undefined, userId: string)
 	const s = String(url ?? '').trim();
 	if (s.length === 0) return true;
 	if (s.length > 2048) return false;
+	if (!PUBLIC_SUPABASE_URL) return false;
 	try {
 		const u = new URL(s);
-		const marker = `/object/public/tour-review-images/${userId}/`;
-		return u.pathname.includes(marker);
+		const allowedOrigin = new URL(PUBLIC_SUPABASE_URL).origin;
+		const marker = `/storage/v1/object/public/tour-review-images/${userId}/`;
+		return u.origin === allowedOrigin && u.pathname.startsWith(marker);
 	} catch {
 		return false;
 	}

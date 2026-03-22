@@ -7,6 +7,12 @@
 <div class="profile-page">
 	<h1>Profile</h1>
 
+	{#if data.profile?.avatar_url}
+		<div class="profile-avatar-large-wrap">
+			<img src={data.profile.avatar_url} alt="Profile avatar" class="profile-avatar-large" />
+		</div>
+	{/if}
+
 	{#if data.profileError}
 		<p class="message error">{data.profileError}</p>
 	{/if}
@@ -71,6 +77,21 @@
 		grid-template-columns: auto 1fr;
 		gap: 0.5rem 1.5rem;
 		margin-bottom: 1rem;
+	}
+
+	.profile-avatar-large-wrap {
+		margin: 0 0 1rem;
+	}
+
+	.profile-avatar-large {
+		width: min(11rem, 44vw);
+		aspect-ratio: 1 / 1;
+		display: block;
+		object-fit: cover;
+		border-radius: var(--border-radius-sm);
+		border: 2px solid var(--color-border);
+		background: var(--color-bg-muted);
+		box-shadow: var(--shadow-card);
 	}
 
 	.profile-details dt {

@@ -1,4 +1,5 @@
 import { error, fail, redirect } from '@sveltejs/kit';
+import type { Tour } from '$lib/tours/dateGrouping';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load = (async ({ params, locals: { supabase, safeGetSession } }) => {
@@ -19,7 +20,13 @@ export const load = (async ({ params, locals: { supabase, safeGetSession } }) =>
 		throw error(403, 'You are not authorized to edit this tour');
 	}
 
-	return { tour };
+	const tourForForm: Tour = {
+		...tour,
+		participant_count: 0,
+		has_joined: false,
+	};
+
+	return { tour: tourForForm };
 }) satisfies PageServerLoad;
 
 export const actions = {

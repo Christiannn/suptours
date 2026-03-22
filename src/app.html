@@ -3,6 +3,70 @@
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!-- Machine-readable hints for crawlers, AI assistants, and automated agents -->
+		<meta
+			name="sup-tours:agent-guidance"
+			content="Upcoming published SUP tours (agenda): /tours — Use ?search=terms for text search (up to 10 matches), or ?show=title-slug-date to deep-link a tour. Optional intent log: GET /api/x-bot-agent-intent?q=... (max 2 req/s per IP)."
+		/>
+		<link rel="related" href="/tours" title="SUP Tours — upcoming tour agenda" />
+		<script type="application/ld+json">
+			{
+				"@context": "https://schema.org",
+				"@graph": [
+					{
+						"@type": "WebSite",
+						"@id": "/#website",
+						"name": "SUP Tours",
+						"description": "Find and join stand up paddle tours; community-driven SUP adventures.",
+						"url": "/",
+						"potentialAction": [
+							{
+								"@type": "SearchAction",
+								"name": "Search tours on the agenda (up to 10 matches)",
+								"target": {
+									"@type": "EntryPoint",
+									"urlTemplate": "/tours?search={search_term_string}"
+								},
+								"query-input": "required name=search_term_string"
+							},
+							{
+								"@type": "ReadAction",
+								"name": "Open the SUP tour agenda",
+								"target": {
+									"@type": "EntryPoint",
+									"urlTemplate": "/tours"
+								}
+							}
+						]
+					},
+					{
+						"@type": "EntryPoint",
+						"name": "SUP Tours — agent intent log (query parameters)",
+						"description": "Optional GET for product research; rate-limited.",
+						"urlTemplate": "/api/x-bot-agent-intent?q={search}&purpose={purpose}",
+						"httpMethod": "GET"
+					},
+					{
+						"@type": "WebPage",
+						"name": "SUP Tours — tour agenda & search",
+						"description": "Browse, filter, and search published SUP tours. Use ?search=terms for text search (up to 10 results); use ?show=title-slug-date to open a tour in the agenda modal.",
+						"url": "/tours"
+					},
+					{
+						"@type": "WebPage",
+						"name": "SUP Tours — community",
+						"description": "Community talks, discussions, and SUP topics.",
+						"url": "/community"
+					},
+					{
+						"@type": "WebPage",
+						"name": "SUP Tours — marketplace",
+						"description": "Marketplace for paddle gear and services (rolling out).",
+						"url": "/marketplace"
+					}
+				]
+			}
+		</script>
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />

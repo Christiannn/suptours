@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
+
 	let { data } = $props();
 </script>
 
@@ -6,7 +8,7 @@
 	<div class="blog-header">
 		<h1>Blog</h1>
 		{#if data.user}
-			<a href="/blog/new" class="new-post-link">New post</a>
+			<a href={resolve('/admin/blog/new')} class="new-post-link">New post</a>
 		{/if}
 	</div>
 
@@ -14,7 +16,7 @@
 		<ul class="blog-list">
 			{#each data.posts as post (post.id)}
 				<li>
-					<a href={`/blog/${post.slug}`}>{post.title}</a>
+					<a href={resolve(`/blog/${post.slug}`)}>{post.title}</a>
 					<span class="meta">
 						{post.created_at ? new Date(post.created_at).toLocaleDateString() : ''}
 						{#if post.profiles}
@@ -22,7 +24,7 @@
 						{/if}
 						{#if data.user && data.user.id === post.author_id}
 							·
-							<a href={`/blog/edit/${post.slug}`}>Edit</a>
+							<a href={resolve(`/admin/blog/edit/${post.slug}`)}>Edit</a>
 						{/if}
 					</span>
 				</li>

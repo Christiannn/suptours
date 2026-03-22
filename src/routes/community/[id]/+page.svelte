@@ -451,7 +451,7 @@
 		padding: 0.5rem 1.25rem;
 		background: var(--color-primary);
 		color: white;
-		border: none;
+		border: 1px solid var(--color-primary-border);
 		border-radius: var(--border-radius-full);
 		font: inherit;
 		font-size: var(--font-size-sm);
@@ -460,7 +460,10 @@
 		transition: background var(--transition-fast);
 	}
 
-	.btn-submit:hover:not(:disabled) { background: var(--color-primary-dark); }
+	.btn-submit:hover:not(:disabled) {
+		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
+	}
 	.btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
 	@media (min-width: 768px) {

@@ -3,12 +3,13 @@
  *
  * Phase 1 – Base search.
  * Uses Brave Search API to find candidate URLs, then passes the results to
- * Claude which filters and returns only real SUP-event sites in Denmark.
+ * Claude or Gemini to filter and return only real SUP-event sites in Denmark.
  */
 
-import Anthropic from '@anthropic-ai/sdk';
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+import { getBraveSearchApiKey } from '$lib/server/secrets';
+import type { AiScraperConfig } from './aiScraperConfig';
+import { DEFAULT_AI_CONFIG } from './aiScraperConfig';
+import { generateAiText } from './generateAiText.server';
 
 export interface DiscoveredSource {
 	url: string;
@@ -17,7 +18,7 @@ export interface DiscoveredSource {
 	description: string;
 }
 
-const SEARCH_QUERIES = [
+const DEFAULT_SEARCH_QUERIES = [
 	'SUP arrangementer Danmark 2025 2026',
 	'stand up paddleboard events Danmark race',
 	'SUP tour race DK kalender',
@@ -25,37 +26,61 @@ const SEARCH_QUERIES = [
 	'SUP klub events Danmark',
 ];
 
-/** Run all search queries and return deduplicated, Claude-filtered sources. */
-export async function searchSUPEventSites(): Promise<DiscoveredSource[]> {
-	const braveKey = process.env.BRAVE_SEARCH_API_KEY;
-	if (!braveKey) throw new Error('BRAVE_SEARCH_API_KEY is not configured');
+const DEFAULT_DOMAIN_PATTERNS = ['*.dk*'];
 
-	const allRaw: RawResult[] = [];
-
-	for (const query of SEARCH_QUERIES) {
-		const hits = await braveSearch(query, braveKey);
-		allRaw.push(...hits);
-	}
-
-	// Deduplicate raw results by URL before sending to Claude
-	const unique = deduplicateRaw(allRaw);
-
-	// Let Claude filter and normalise the results
-	return await filterWithClaude(unique);
+export interface SearchSUPEventSitesOptions {
+	searchQueries?: string[];
+	domainPatterns?: string[];
+	maxResults?: number;
 }
 
-// ─── Brave Search ────────────────────────────────────────────────────────────
+export async function searchSUPEventSites(
+	config: AiScraperConfig = DEFAULT_AI_CONFIG,
+	options: SearchSUPEventSitesOptions = {},
+): Promise<DiscoveredSource[]> {
+	const braveKey = getBraveSearchApiKey();
+	if (!braveKey) throw new Error('BRAVE_SEARCH_API_KEY is not configured (add to .env in project root)');
 
-interface RawResult {
+	const searchQueries = (options.searchQueries ?? DEFAULT_SEARCH_QUERIES)
+		.map((q) => q.trim())
+		.filter(Boolean);
+	const domainPatterns = (options.domainPatterns ?? DEFAULT_DOMAIN_PATTERNS)
+		.map((p) => p.trim().toLowerCase())
+		.filter(Boolean);
+	const maxResults = clampMaxResults(options.maxResults);
+
+	const allRaw: BraveWebResult[] = [];
+
+	for (const query of searchQueries) {
+		try {
+			const hits = await braveWebSearch(query, braveKey, Math.min(maxResults, 20));
+			allRaw.push(...hits);
+		} catch (e) {
+			console.error('[webSearch] Brave fejl for query:', query, e);
+		}
+	}
+
+	const unique = deduplicateRaw(allRaw).filter((result) => matchesDomainPattern(result.url, domainPatterns));
+	const limited = unique.slice(0, maxResults);
+
+	return await filterWithAi(limited, config);
+}
+
+export interface BraveWebResult {
 	url: string;
 	title: string;
 	description: string;
 }
 
-async function braveSearch(query: string, apiKey: string): Promise<RawResult[]> {
+/** Brave Web Search API — bruges af scraper og admin-test. */
+export async function braveWebSearch(
+	query: string,
+	apiKey: string,
+	count = 10,
+): Promise<BraveWebResult[]> {
 	const params = new URLSearchParams({
 		q: query,
-		count: '10',
+		count: String(count),
 		country: 'DK',
 		search_lang: 'da',
 	});
@@ -70,11 +95,11 @@ async function braveSearch(query: string, apiKey: string): Promise<RawResult[]> 
 	});
 
 	if (!res.ok) {
-		console.error(`Brave Search error ${res.status} for query: ${query}`);
-		return [];
+		const errBody = await res.text().catch(() => '');
+		throw new Error(`Brave Search HTTP ${res.status}: ${errBody.slice(0, 500)}`);
 	}
 
-	const data = (await res.json()) as { web?: { results?: RawResult[] } };
+	const data = (await res.json()) as { web?: { results?: BraveWebResult[] } };
 	return (data.web?.results ?? []).map((r) => ({
 		url: r.url,
 		title: r.title ?? '',
@@ -82,7 +107,7 @@ async function braveSearch(query: string, apiKey: string): Promise<RawResult[]> 
 	}));
 }
 
-function deduplicateRaw(results: RawResult[]): RawResult[] {
+function deduplicateRaw(results: BraveWebResult[]): BraveWebResult[] {
 	const seen = new Set<string>();
 	return results.filter((r) => {
 		if (seen.has(r.url)) return false;
@@ -91,9 +116,36 @@ function deduplicateRaw(results: RawResult[]): RawResult[] {
 	});
 }
 
-// ─── Claude filtering ────────────────────────────────────────────────────────
+function clampMaxResults(raw: number | undefined): number {
+	if (!Number.isFinite(raw)) return 50;
+	return Math.max(1, Math.min(50, Math.floor(raw ?? 50)));
+}
 
-async function filterWithClaude(raw: RawResult[]): Promise<DiscoveredSource[]> {
+function matchesDomainPattern(url: string, patterns: string[]): boolean {
+	if (patterns.length === 0) return true;
+	let normalizedUrl = '';
+	let host = '';
+	try {
+		const parsed = new URL(url);
+		normalizedUrl = `${parsed.hostname}${parsed.pathname}`.toLowerCase();
+		host = parsed.hostname.toLowerCase();
+	} catch {
+		normalizedUrl = url.toLowerCase();
+	}
+
+	return patterns.some((pattern) => {
+		const raw = pattern.trim().toLowerCase();
+		if (!raw) return false;
+		const regex = new RegExp(`^${escapeRegex(raw).replace(/\\\*/g, '.*')}$`);
+		return regex.test(normalizedUrl) || (host ? regex.test(host) : false);
+	});
+}
+
+function escapeRegex(value: string): string {
+	return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+async function filterWithAi(raw: BraveWebResult[], config: AiScraperConfig): Promise<DiscoveredSource[]> {
 	if (raw.length === 0) return [];
 
 	const prompt = `
@@ -120,20 +172,14 @@ Returner et JSON-array med dette format – intet andet:
 Hvis ingen resultater er relevante, returner [].
 `;
 
-	const response = await anthropic.messages.create({
-		model: 'claude-sonnet-4-6',
-		max_tokens: 2048,
-		messages: [{ role: 'user', content: prompt }],
-	});
-
-	const text = response.content[0].type === 'text' ? response.content[0].text : '';
+	const text = await generateAiText(prompt, config);
 
 	try {
 		const match = text.match(/\[[\s\S]*\]/);
 		if (!match) return [];
 		return JSON.parse(match[0]) as DiscoveredSource[];
 	} catch {
-		console.error('Failed to parse Claude response:', text);
+		console.error('Failed to parse AI filter response:', text);
 		return [];
 	}
 }

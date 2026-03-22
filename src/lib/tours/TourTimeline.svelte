@@ -106,7 +106,7 @@
 	.timeline__dot--first {
 		background: var(--color-primary);
 		border-color: var(--color-primary);
-		box-shadow: 0 0 0 4px rgba(19, 200, 236, 0.15);
+		box-shadow: 0 0 0 4px rgba(var(--color-primary-rgb), 0.15);
 	}
 
 	.timeline__dot-pulse {

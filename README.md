@@ -3,6 +3,7 @@ Find - Share - Plan - Participate - and Talk alot about SUP tours and adventures
 
 # DEVELOP:
 - Read [INSTRUCTIONS.md](./INSTRUCTIONS.md)
+- Local Supabase, reset, types, login: [local-dev.md](./local-dev.md)
 
 ---
 

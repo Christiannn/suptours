@@ -8,7 +8,7 @@
 <div class="profile-edit-page">
 	<h1>Edit profile</h1>
 
-	<form method="POST" use:enhance class="profile-form">
+	<form method="POST" enctype="multipart/form-data" use:enhance class="profile-form">
 		<label for="display_name">Display name</label>
 		<input
 			id="display_name"
@@ -27,8 +27,15 @@
 		<label for="city">City</label>
 		<input id="city" name="city" type="text" value={data.profile?.city ?? ''} />
 
-		<label for="avatar_url">Avatar URL</label>
-		<input id="avatar_url" name="avatar_url" type="url" value={data.profile?.avatar_url ?? ''} />
+		<label for="avatar_file">Profile image</label>
+		{#if data.profile?.avatar_url}
+			<div class="avatar-preview">
+				<img src={data.profile.avatar_url} alt="Current profile avatar" loading="lazy" />
+				<span>Current image</span>
+			</div>
+		{/if}
+		<input id="avatar_file" name="avatar_file" type="file" accept="image/*" />
+		<p class="field-note">Upload a new image to replace the current avatar (max 3MB).</p>
 
 		{#if form?.message}
 			<p class="message error">{form.message}</p>
@@ -60,6 +67,36 @@
 
 	.profile-form input {
 		width: 100%;
+	}
+
+	.avatar-preview {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.35rem 0.5rem;
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--border-radius);
+		background: var(--color-bg-muted);
+		width: fit-content;
+	}
+
+	.avatar-preview img {
+		width: 44px;
+		height: 44px;
+		border-radius: var(--border-radius-full);
+		object-fit: cover;
+		border: 1px solid var(--color-border);
+	}
+
+	.avatar-preview span {
+		font-size: var(--font-size-xs);
+		color: var(--color-text-muted);
+	}
+
+	.field-note {
+		margin: -0.3rem 0 0;
+		font-size: var(--font-size-xs);
+		color: var(--color-text-muted);
 	}
 
 	.message.error {

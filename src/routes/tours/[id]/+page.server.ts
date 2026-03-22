@@ -6,7 +6,7 @@ export const load = (async ({ params, locals: { supabase, safeGetSession } }) =>
 
 	const { data: tour, error: tourError } = await supabase
 		.from('tours')
-		.select('*')
+		.select('*, teams(name)')
 		.eq('id', params.id)
 		.single();
 
@@ -19,10 +19,10 @@ export const load = (async ({ params, locals: { supabase, safeGetSession } }) =>
 		error(404, 'Tour not found');
 	}
 
-	// Increment view count (fire and forget)
+	// Increment view count
 	await supabase
 		.from('tours')
-		.update({ view_count: tour.view_count + 1 })
+		.update({ view_count: (tour.view_count ?? 0) + 1 })
 		.eq('id', tour.id);
 
 	// Get participants
@@ -56,6 +56,7 @@ export const load = (async ({ params, locals: { supabase, safeGetSession } }) =>
 			...tour,
 			participant_count: participants?.length ?? 0,
 			has_joined,
+			team_name: tour.teams?.name ?? null,
 			creator_name: creatorProfile?.display_name ?? null,
 			creator_avatar: creatorProfile?.avatar_url ?? null
 		},

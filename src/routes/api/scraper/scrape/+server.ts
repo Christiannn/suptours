@@ -3,15 +3,17 @@
  *
  * Triggers the event-extraction phase.
  * Iterates all active scraper_sources, fetches each URL, extracts events via
- * Claude, and inserts them as draft tours (source='web', status='draft').
+ * Gemini, and inserts them as draft tours (source='web', status='draft').
  * Only callable by admin users.
  */
 
 import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { scrapeEventsFromUrl } from '$lib/scraper/eventScraper.server';
+import { resolveAiScraperConfig } from '$lib/scraper/resolveAiScraperConfig.server';
+import { getAnthropicApiKey, getGeminiApiKey } from '$lib/server/secrets';
 
-export const POST: RequestHandler = async ({ locals }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	const { user } = await locals.safeGetSession();
 	if (!user) throw error(401, 'Unauthorized');
 
@@ -22,6 +24,21 @@ export const POST: RequestHandler = async ({ locals }) => {
 		.single();
 
 	if (!profile?.is_admin) throw error(403, 'Forbidden');
+
+	let body: unknown;
+	try {
+		body = await request.json();
+	} catch {
+		body = undefined;
+	}
+	const aiConfig = resolveAiScraperConfig(body);
+
+	if (aiConfig.provider === 'gemini' && !getGeminiApiKey()) {
+		throw error(400, 'GEMINI_API_KEY er ikke sat på serveren (.env — se local-dev.md)');
+	}
+	if (aiConfig.provider === 'claude' && !getAnthropicApiKey()) {
+		throw error(400, 'ANTHROPIC_API_KEY er ikke sat på serveren');
+	}
 
 	// Create a run record
 	const { data: run, error: runErr } = await locals.supabase
@@ -54,7 +71,7 @@ export const POST: RequestHandler = async ({ locals }) => {
 
 	for (const source of sources) {
 		try {
-			const events = await scrapeEventsFromUrl(source.url);
+			const events = await scrapeEventsFromUrl(source.url, aiConfig);
 
 			for (const ev of events) {
 				// start_date is required by the schema – skip events with unknown date

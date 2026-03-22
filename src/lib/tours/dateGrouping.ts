@@ -19,6 +19,7 @@ export interface Tour {
 	status: string;
 	max_participants: number | null;
 	creator_id: string;
+	team_id?: string | null;
 	responsible_person: string | null;
 	contact_info: string | null;
 	security_notes: string | null;
@@ -29,10 +30,11 @@ export interface Tour {
 	view_count: number;
 	external_url: string | null;
 	created_at: string | null;
-	participant_count?: number;
-	has_joined?: boolean;
+	participant_count: number;
+	has_joined: boolean;
 	creator_name?: string | null;
 	creator_avatar?: string | null;
+	team_name?: string | null;
 }
 
 export interface TourGroup {

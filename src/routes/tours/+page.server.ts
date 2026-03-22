@@ -14,6 +14,7 @@ export const load = (async ({ locals: { supabase, safeGetSession } }) => {
 			locality, latitude, longitude,
 			tags, source, status,
 			max_participants, creator_id,
+			team_id, teams(name),
 			responsible_person, contact_info, security_notes,
 			parking_info, age_min, age_max,
 			featured, view_count, external_url,
@@ -72,7 +73,8 @@ export const load = (async ({ locals: { supabase, safeGetSession } }) => {
 		participant_count: participantCounts[t.id] ?? 0,
 		has_joined: userJoined.has(t.id),
 		creator_name: creatorProfiles[t.creator_id]?.display_name ?? null,
-		creator_avatar: creatorProfiles[t.creator_id]?.avatar_url ?? null
+		creator_avatar: creatorProfiles[t.creator_id]?.avatar_url ?? null,
+		team_name: t.teams?.name ?? null
 	}));
 
 	return { tours: enrichedTours, user };

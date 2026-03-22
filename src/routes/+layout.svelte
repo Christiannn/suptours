@@ -4,34 +4,14 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import CookieConsent from '$lib/Shared/CookieConsent.svelte';
-	import DonateButton from '$lib/Shared/DonateButton.svelte';
 
 	let { data, children } = $props();
 
 	let mobileMenuOpen = $state(false);
-	let userMenuOpen = $state(false);
-	let userMenuEl: HTMLDivElement | undefined = $state();
+	let profileMenuOpen = $state(false);
+	const PROFILE_MENU_ID = 'desktop-profile-menu';
 
 	const pathname = $derived(page.url.pathname);
-
-	$effect(() => {
-		void pathname;
-		userMenuOpen = false;
-	});
-
-	$effect(() => {
-		if (!userMenuOpen || typeof document === 'undefined') return;
-		const onDocClick = (e: MouseEvent) => {
-			if (userMenuEl && !userMenuEl.contains(e.target as Node)) {
-				userMenuOpen = false;
-			}
-		};
-		const t = window.setTimeout(() => document.addEventListener('click', onDocClick), 0);
-		return () => {
-			window.clearTimeout(t);
-			document.removeEventListener('click', onDocClick);
-		};
-	});
 	const segments = $derived(pathname.split('/').filter(Boolean));
 	const activeSection = $derived(
 		segments[0] === 'tours'
@@ -48,12 +28,30 @@
 								? 'profile'
 								: 'home'
 	);
-	const displayName = $derived(data.user?.user_metadata?.display_name ?? data.user?.email ?? 'Profile');
+	const displayName = $derived(data.profileDisplayName ?? data.user?.user_metadata?.display_name ?? data.user?.email ?? 'Profile');
 
 	// Check if current page is a full-bleed page (no sidebar layout)
 	const isFullBleedPage = $derived(
-		activeSection === 'tours' || activeSection === 'home'
+		activeSection === 'tours' || activeSection === 'home' || activeSection === 'marketplace'
 	);
+
+	function closeProfileMenu() {
+		profileMenuOpen = false;
+	}
+
+	function handleWindowPointerDown(event: PointerEvent) {
+		if (!profileMenuOpen) return;
+		const profileMenuEl = document.getElementById(PROFILE_MENU_ID);
+		if (!profileMenuEl) return;
+		const target = event.target;
+		if (target instanceof Node && !profileMenuEl.contains(target)) {
+			closeProfileMenu();
+		}
+	}
+
+	function handleWindowKeydown(event: KeyboardEvent) {
+		if (event.key === 'Escape') closeProfileMenu();
+	}
 </script>
 
 <svelte:head>
@@ -61,11 +59,7 @@
 	<meta name="description" content="Plan, find, share, and join Stand Up Paddle tours across Denmark and beyond." />
 </svelte:head>
 
-<svelte:window
-	onkeydown={(e) => {
-		if (e.key === 'Escape' && userMenuOpen) userMenuOpen = false;
-	}}
-/>
+<svelte:window onpointerdown={handleWindowPointerDown} onkeydown={handleWindowKeydown} />
 
 <div id="app" class="app">
 	<!-- Desktop Header -->
@@ -82,38 +76,27 @@
 			<a href={resolve('/marketplace')} class="nav-link" class:active={activeSection === 'marketplace'}>Market</a>
 			<a href={resolve('/blog')} class="nav-link" class:active={activeSection === 'blog'}>Blog</a>
 			{#if data.user}
-				<div class="user-menu" bind:this={userMenuEl}>
-					<button
-						type="button"
-						class="nav-link user-menu__trigger"
-						class:active={activeSection === 'profile'}
-						aria-expanded={userMenuOpen}
-						aria-haspopup="true"
-						onclick={(e) => {
-							e.stopPropagation();
-							userMenuOpen = !userMenuOpen;
-						}}
-					>
-						<span class="material-symbols-outlined" style="font-size:20px;vertical-align:middle">account_circle</span>
+				<details id={PROFILE_MENU_ID} class="profile-menu" bind:open={profileMenuOpen}>
+					<summary class="nav-link" class:active={activeSection === 'profile'}>
+						{#if data.profileAvatarUrl}
+							<img src={data.profileAvatarUrl} alt="" class="profile-avatar profile-avatar--xs" />
+						{:else}
+							<span class="material-symbols-outlined" style="font-size:20px;vertical-align:middle">account_circle</span>
+						{/if}
 						{displayName}
-					</button>
-					{#if userMenuOpen}
-						<div class="user-menu__panel" role="menu">
-							<a href={resolve('/profile')} role="menuitem" onclick={() => (userMenuOpen = false)}>Profile</a>
-							<a href={resolve('/profile/reviews')} role="menuitem" onclick={() => (userMenuOpen = false)}>
-								My reviews
-							</a>
-							<a href={resolve('/team')} role="menuitem" onclick={() => (userMenuOpen = false)}>Team manager</a>
-							{#if data.isAdmin}
-								<a href={resolve('/admin')} role="menuitem" onclick={() => (userMenuOpen = false)}>Admin</a>
-							{/if}
-							<hr />
-							<form method="POST" action={resolve('/logout')} class="dropdown-logout-form">
-								<button type="submit">Log out</button>
-							</form>
-						</div>
-					{/if}
-				</div>
+					</summary>
+					<div class="profile-menu-list">
+						<a href={resolve('/profile')} onclick={closeProfileMenu}>Profile</a>
+						<a href={resolve('/team')} onclick={closeProfileMenu}>Team manager</a>
+						{#if data.isAdmin}
+							<a href={resolve('/admin')} onclick={closeProfileMenu}>Admin</a>
+						{/if}
+						<hr />
+						<form method="POST" action={resolve('/logout')} class="dropdown-logout-form">
+							<button type="submit" onclick={closeProfileMenu}>Log out</button>
+						</form>
+					</div>
+				</details>
 			{:else}
 				<a href={resolve('/login')} class="nav-link">Log in</a>
 				<a href={resolve('/signup')} class="btn-primary-sm">Sign up</a>
@@ -131,25 +114,23 @@
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div class="mobile-overlay" onclick={() => mobileMenuOpen = false} onkeydown={() => {}}></div>
 		<nav class="mobile-menu">
-			<a href={resolve('/')} onclick={() => mobileMenuOpen = false}>Home</a>
-			<a href={resolve('/tours')} onclick={() => mobileMenuOpen = false}>Tours</a>
-			<a href={resolve('/community')} onclick={() => mobileMenuOpen = false}>Community</a>
-			<a href={resolve('/marketplace')} onclick={() => mobileMenuOpen = false}>Market</a>
-			<a href={resolve('/blog')} onclick={() => mobileMenuOpen = false}>Blog</a>
+			<a href={resolve('/')} onclick={() => mobileMenuOpen = false} aria-label="Go to Home">Home</a>
+			<a href={resolve('/tours')} onclick={() => mobileMenuOpen = false} aria-label="Go to Tours">Tours</a>
+			<a href={resolve('/community')} onclick={() => mobileMenuOpen = false} aria-label="Go to Community">Community</a>
+			<a href={resolve('/marketplace')} onclick={() => mobileMenuOpen = false} aria-label="Go to Market">Market</a>
+			<a href={resolve('/blog')} onclick={() => mobileMenuOpen = false} aria-label="Go to Blog">Blog</a>
 			<hr />
 			{#if data.user}
-				<a href={resolve('/profile')} onclick={() => mobileMenuOpen = false}>Profile</a>
-				<a href={resolve('/profile/reviews')} onclick={() => mobileMenuOpen = false}>My reviews</a>
-				<a href={resolve('/team')} onclick={() => mobileMenuOpen = false}>Team manager</a>
+				<a href={resolve('/profile')} onclick={() => mobileMenuOpen = false} aria-label="Go to Profile">Profile</a>
 				{#if data.isAdmin}
-					<a href={resolve('/admin')} onclick={() => mobileMenuOpen = false}>Admin</a>
+					<a href={resolve('/admin')} onclick={() => mobileMenuOpen = false} aria-label="Go to Admin">Admin</a>
 				{/if}
 				<form method="POST" action={resolve('/logout')}>
-					<button type="submit">Log out</button>
+					<button type="submit" aria-label="Log out">Log out</button>
 				</form>
 			{:else}
-				<a href={resolve('/login')} onclick={() => mobileMenuOpen = false}>Log in</a>
-				<a href={resolve('/signup')} onclick={() => mobileMenuOpen = false}>Sign up</a>
+				<a href={resolve('/login')} onclick={() => mobileMenuOpen = false} aria-label="Go to Log in">Log in</a>
+				<a href={resolve('/signup')} onclick={() => mobileMenuOpen = false} aria-label="Go to Sign up">Sign up</a>
 			{/if}
 		</nav>
 	{/if}
@@ -167,32 +148,41 @@
 				<a href={resolve('/blog')}>Blog</a>
 				<a href={resolve('/community')}>Community</a>
 			</span>
-			<DonateButton />
+			<!-- <DonateButton /> -->
 		</div>
 	</footer>
 
 	<!-- Mobile Bottom Navigation -->
 	<nav class="bottom-nav">
-		<a href={resolve('/tours')} class="bottom-nav-item" class:active={activeSection === 'tours'}>
+		<a href={resolve('/tours')} class="bottom-nav-item" class:active={activeSection === 'tours'} aria-label="Open Tours">
 			<span class="material-symbols-outlined">calendar_month</span>
 			<span class="bottom-nav-label">Tours</span>
 		</a>
-		<a href={resolve('/')} class="bottom-nav-item" class:active={activeSection === 'home'}>
+		<a href={resolve('/')} class="bottom-nav-item" class:active={activeSection === 'home'} aria-label="Open Explore">
 			<span class="material-symbols-outlined">explore</span>
 			<span class="bottom-nav-label">Explore</span>
 		</a>
 		{#if data.user}
-			<a href={resolve('/tours/new')} class="bottom-nav-item bottom-nav-fab">
+			<a href={resolve('/tours/new')} class="bottom-nav-item bottom-nav-fab" aria-label="Create new tour">
 				<span class="material-symbols-outlined">add</span>
 			</a>
 		{/if}
-		<a href={resolve('/community')} class="bottom-nav-item" class:active={activeSection === 'community'}>
+		<a href={resolve('/community')} class="bottom-nav-item" class:active={activeSection === 'community'} aria-label="Open Community">
 			<span class="material-symbols-outlined">forum</span>
 			<span class="bottom-nav-label">Community</span>
 		</a>
-		<a href={resolve('/profile')} class="bottom-nav-item" class:active={activeSection === 'profile'}>
-			<span class="material-symbols-outlined">account_circle</span>
-			<span class="bottom-nav-label">Profile</span>
+		<a
+			href={data.user ? resolve('/profile') : `${resolve('/login')}?next=%2Fprofile`}
+			class="bottom-nav-item"
+			class:active={activeSection === 'profile'}
+			aria-label={data.user ? 'Open Profile' : 'Open Log in'}
+		>
+			{#if data.user && data.profileAvatarUrl}
+				<img src={data.profileAvatarUrl} alt="" class="bottom-nav-avatar" />
+			{:else}
+				<span class="material-symbols-outlined">account_circle</span>
+			{/if}
+			<span class="bottom-nav-label">{data.user ? 'Profile' : 'Log in'}</span>
 		</a>
 	</nav>
 
@@ -217,7 +207,7 @@
 		border-bottom: var(--border-width) solid var(--color-border);
 		position: sticky;
 		top: 0;
-		z-index: 100;
+		z-index: 240;
 	}
 
 	.logo {
@@ -280,6 +270,7 @@
 		color: var(--color-text-light);
 		font-size: var(--font-size-sm);
 		font-weight: 600;
+		border: 1px solid var(--color-primary-border);
 		border-radius: var(--border-radius-full);
 		text-decoration: none;
 		transition: background var(--transition-fast);
@@ -287,25 +278,46 @@
 
 	.btn-primary-sm:hover {
 		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
 		text-decoration: none;
 	}
 
-	/* Header user dropdown */
-	.user-menu {
+	/* Profile dropdown */
+	.profile-menu {
 		position: relative;
+		z-index: 2;
 	}
 
-	.user-menu__trigger {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.35rem;
-		border: none;
-		background: transparent;
-		font: inherit;
+	.profile-menu summary {
+		list-style: none;
 		cursor: pointer;
+		display: inline-grid;
+		grid-template-columns: 2.35rem auto;
+		align-items: center;
+		gap: 0.55rem;
+		min-width: 10rem;
+		padding: 0.15rem 0.75rem 0.15rem 0.15rem;
 	}
 
-	.user-menu__panel {
+	.profile-menu summary::-webkit-details-marker { display: none; }
+
+	.profile-avatar {
+		display: inline-block;
+		object-fit: cover;
+		border-radius: var(--border-radius-full);
+		border: 1px solid var(--color-border);
+		background: var(--color-bg-muted);
+		flex-shrink: 0;
+	}
+
+	.profile-avatar--xs {
+		width: 2.35rem;
+		height: 2.35rem;
+		border-radius: calc(var(--border-radius-sm) - 1px);
+		border: none;
+	}
+
+	.profile-menu-list {
 		position: absolute;
 		top: calc(100% + 0.5rem);
 		right: 0;
@@ -317,11 +329,11 @@
 		border: var(--border-width) solid var(--color-border);
 		border-radius: var(--border-radius-lg);
 		box-shadow: var(--shadow-lg);
-		z-index: 110;
+		z-index: 280;
 	}
 
-	.user-menu__panel a,
-	.user-menu__panel button {
+	.profile-menu-list a,
+	.profile-menu-list button {
 		display: block;
 		width: 100%;
 		text-align: left;
@@ -336,13 +348,13 @@
 		cursor: pointer;
 	}
 
-	.user-menu__panel a:hover,
-	.user-menu__panel button:hover {
+	.profile-menu-list a:hover,
+	.profile-menu-list button:hover {
 		background: var(--color-bg-muted);
 		color: var(--color-primary);
 	}
 
-	.user-menu__panel hr {
+	.profile-menu-list hr {
 		border: none;
 		border-top: var(--border-width) solid var(--color-border);
 		margin: 0.25rem 0;
@@ -433,7 +445,7 @@
 	/* ---- FOOTER ---- */
 	.footer {
 		border-top: var(--border-width) solid var(--color-border);
-		background: var(--color-surface);
+		background: #2a3038;
 		padding: 1.5rem var(--section-padding);
 	}
 
@@ -447,7 +459,7 @@
 
 	.footer-brand {
 		font-weight: 700;
-		color: var(--color-text);
+		color: #f4f6fa;
 	}
 
 	.footer-links {
@@ -456,13 +468,13 @@
 	}
 
 	.footer-links a {
-		color: var(--color-text-muted);
+		color: #c8d0db;
 		text-decoration: none;
 		font-size: var(--font-size-sm);
 	}
 
 	.footer-links a:hover {
-		color: var(--color-primary);
+		color: #ffffff;
 	}
 
 	/* ---- BOTTOM NAV (mobile) ---- */
@@ -502,6 +514,16 @@
 		font-size: 24px;
 	}
 
+	.bottom-nav-avatar {
+		width: 24px;
+		height: 24px;
+		display: block;
+		object-fit: cover;
+		border-radius: var(--border-radius-full);
+		border: 1px solid var(--color-border);
+		background: var(--color-bg-muted);
+	}
+
 	.bottom-nav-label {
 		font-weight: 500;
 	}
@@ -511,6 +533,7 @@
 		top: -0.75rem;
 		width: 3rem;
 		height: 3rem;
+		border: 1px solid var(--color-primary-border);
 		border-radius: var(--border-radius-full);
 		background: var(--color-primary);
 		color: var(--color-text-light);
@@ -525,6 +548,7 @@
 
 	.bottom-nav-fab:hover {
 		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
 	}
 
 	/* ---- RESPONSIVE ---- */

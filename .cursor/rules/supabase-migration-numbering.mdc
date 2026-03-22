@@ -1,0 +1,22 @@
+---
+description: Enforce incremental numbering for Supabase migration filenames
+globs: supabase/migrations/*.sql
+alwaysApply: false
+---
+
+# Supabase Migration Filename Numbering
+
+When creating a new migration in `supabase/migrations/`, always increment the final numeric suffix from the latest existing migration file.
+
+- Inspect existing migration filenames in `supabase/migrations/`.
+- Identify the highest trailing numeric segment.
+- Name the new migration with the next number (highest + 1).
+- Keep the existing prefix/timestamp format used by this project.
+
+## Example
+
+If latest is `20260322000000_add_team_to_tours.sql`, next should be:
+
+- `20260322000001_<description>.sql`
+
+Do not reuse or skip numbers unless explicitly requested.

@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { onMount } from 'svelte';
+	import { resolve } from '$app/paths';
 	import type { Tour } from './dateGrouping';
 	import TourTagBadge from './TourTagBadge.svelte';
+	import { getTourShowSlug } from './tourSlug';
 
 	let {
 		tour,
@@ -48,6 +50,16 @@
 	const imageUrl = $derived(
 		tour.image_url || placeholderImages[Math.abs(tour.title.length) % placeholderImages.length]
 	);
+
+	const sourceBadge = $derived.by(() => {
+		if (tour.source === 'web') return 'Official Event';
+		if (tour.team_name) return tour.team_name;
+		return 'Community';
+	});
+
+	const loginHref = $derived(
+		`${resolve('/login')}?next=${encodeURIComponent(`${resolve('/tours')}?show=${getTourShowSlug(tour)}`)}`
+	);
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -65,7 +77,7 @@
 			</button>
 			<div class="modal__hero-content">
 				<span class="modal__source-badge" class:modal__source-badge--official={tour.source === 'web'}>
-					{tour.source === 'web' ? 'Official Event' : 'Community'}
+					{sourceBadge}
 				</span>
 				<h2 class="modal__title">{tour.title}</h2>
 			</div>
@@ -134,7 +146,7 @@
 				<div class="modal__detail">
 					<span class="material-symbols-outlined">child_care</span>
 					<div>
-						<strong>{tour.age_min}–{tour.age_max} years</strong>
+						<strong>{tour.age_min ?? '—'}–{tour.age_max ?? '—'} years</strong>
 						<span>Age range</span>
 					</div>
 				</div>
@@ -152,9 +164,12 @@
 			{/if}
 
 			<!-- Contact -->
-			{#if tour.responsible_person || tour.contact_info}
+			{#if tour.team_name || tour.responsible_person || tour.contact_info}
 				<div class="modal__section">
 					<h3 class="modal__section-title">Contact</h3>
+					{#if tour.team_name}
+						<p><strong>Host:</strong> {tour.team_name}</p>
+					{/if}
 					{#if tour.responsible_person}
 						<p><strong>Responsible:</strong> {tour.responsible_person}</p>
 					{/if}
@@ -203,7 +218,7 @@
 					</button>
 				</form>
 			{:else}
-				<a href="/login?next=/tours" class="modal__join-btn">
+				<a href={loginHref} class="modal__join-btn">
 					Log in to join
 				</a>
 			{/if}
@@ -472,7 +487,7 @@
 		gap: 0.5rem;
 		width: 100%;
 		padding: 0.85rem;
-		border: none;
+		border: 1px solid var(--color-primary-border);
 		border-radius: var(--border-radius-full);
 		background: var(--color-primary);
 		color: white;
@@ -487,6 +502,7 @@
 
 	.modal__join-btn:hover {
 		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
 		text-decoration: none;
 	}
 
@@ -497,11 +513,13 @@
 	.modal__join-btn--joined {
 		background: var(--color-bg-muted);
 		color: var(--color-text-muted);
+		border-color: var(--color-border);
 		box-shadow: none;
 	}
 
 	.modal__join-btn--joined:hover {
 		background: var(--color-error);
 		color: white;
+		border-color: var(--color-error);
 	}
 </style>

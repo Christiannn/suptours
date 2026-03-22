@@ -111,32 +111,26 @@
 					</div>
 				{/if}
 
-				<div class="comm-bar__filter-group">
-					<button
-						type="button"
-						class="comm-bar__filter-btn"
-						class:comm-bar__filter-btn--active={filterOpen || activeTags.length > 0}
-						onclick={() => filterOpen = !filterOpen}
-						aria-label="Filter subjects"
-					>
-						<span class="material-symbols-outlined">tune</span>
-						{#if activeTags.length === 0}
-							Filter
-						{:else}
-							<span class="comm-bar__filter-count">{activeTags.length}</span>
-						{/if}
-					</button>
-					{#if activeTags.length > 0}
+				<button
+					class="comm-bar__filter-btn"
+					class:comm-bar__filter-btn--active={filterOpen || activeTags.length > 0}
+					onclick={() => filterOpen = !filterOpen}
+					aria-label="Quick filter subjects"
+				>
+					<span class="material-symbols-outlined">tune</span>
+					{#if activeTags.length === 0}
+						Quick filter
+					{:else}
+						<span class="comm-bar__filter-count">{activeTags.length}</span>
 						<button
-							type="button"
 							class="comm-bar__filter-clear"
-							onclick={clearFilters}
+							onclick={(e) => { e.stopPropagation(); clearFilters(); }}
 							aria-label="Clear filters"
 						>
 							<span class="material-symbols-outlined">close</span>
 						</button>
 					{/if}
-				</div>
+				</button>
 
 				<button class="btn-new" onclick={() => showForm = !showForm}>
 					<span class="material-symbols-outlined">add</span>
@@ -186,8 +180,8 @@
 					></textarea>
 				</div>
 
-				<fieldset class="form-field">
-					<legend>Tags <span class="form-field__hint">(optional)</span></legend>
+				<div class="form-field">
+					<label>Tags <span class="form-field__hint">(optional)</span></label>
 					<div class="tag-picker">
 						{#each COMMUNITY_TAGS as tag (tag)}
 							<button
@@ -200,7 +194,7 @@
 							</button>
 						{/each}
 					</div>
-				</fieldset>
+				</div>
 
 				{#if form?.error}
 					<p class="form-error">{form.error}</p>
@@ -307,13 +301,6 @@
 		flex: 1;
 	}
 
-	.comm-bar__filter-group {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.15rem;
-		flex-shrink: 0;
-	}
-
 	.comm-bar__filter-btn {
 		display: inline-flex;
 		align-items: center;
@@ -395,7 +382,11 @@
 	}
 
 	.comm-bar__tag:hover { border-color: var(--color-primary); color: var(--color-primary); }
-	.comm-bar__tag--active { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+	.comm-bar__tag--active {
+		background: var(--color-primary);
+		border-color: var(--color-primary-border);
+		color: white;
+	}
 
 	/* ---- NEW SUBJECT BUTTON ---- */
 	.btn-new {
@@ -405,7 +396,7 @@
 		padding: 0.4rem 0.9rem;
 		background: var(--color-primary);
 		color: white;
-		border: none;
+		border: 1px solid var(--color-primary-border);
 		border-radius: var(--border-radius-full);
 		font: inherit;
 		font-size: var(--font-size-sm);
@@ -417,7 +408,11 @@
 		text-decoration: none;
 	}
 
-	.btn-new:hover { background: var(--color-primary-dark); text-decoration: none; }
+	.btn-new:hover {
+		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
+		text-decoration: none;
+	}
 	.btn-new .material-symbols-outlined { font-size: 18px; }
 	.btn-new--center { margin-top: 1rem; }
 
@@ -443,17 +438,9 @@
 		margin-bottom: 1rem;
 	}
 
-	.form-field label,
-	.form-field legend {
+	.form-field label {
 		font-size: var(--font-size-sm);
 		font-weight: 600;
-	}
-
-	fieldset.form-field {
-		border: none;
-		margin: 0;
-		padding: 0;
-		min-width: 0;
 	}
 
 	.form-field__hint {
@@ -500,7 +487,11 @@
 	}
 
 	.tag-picker__tag:hover { border-color: var(--color-primary); color: var(--color-primary); }
-	.tag-picker__tag--active { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+	.tag-picker__tag--active {
+		background: var(--color-primary);
+		border-color: var(--color-primary-border);
+		color: white;
+	}
 
 	.form-error {
 		color: #ef4444;
@@ -541,7 +532,10 @@
 		transition: background var(--transition-fast);
 	}
 
-	.btn-submit:hover:not(:disabled) { background: var(--color-primary-dark); }
+	.btn-submit:hover:not(:disabled) {
+		background: var(--color-primary-dark);
+		border-color: var(--color-primary-border);
+	}
 	.btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
 
 	/* ---- SUBJECT LIST ---- */
@@ -611,7 +605,6 @@
 		line-height: 1.5;
 		display: -webkit-box;
 		-webkit-line-clamp: 2;
-		line-clamp: 2;
 		-webkit-box-orient: vertical;
 		overflow: hidden;
 	}
