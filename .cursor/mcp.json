@@ -5,14 +5,8 @@
 			"args": ["-y", "@sveltejs/mcp"]
 		},
 		"supabase": {
-			"command": "npx",
-			"args": ["-y", "@supabase/mcp"],
-			"env": {
-				"SUPABASE_PROJECT_REF": "SSBv1",
-				"SUPABASE_URL": "http://127.0.0.1:54321",
-				"SUPABASE_ANON_KEY": "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH"
-			}
-    	},
+			"url": "https://mcp.supabase.com/mcp?project_ref=svnuenjfienbzwgrlrom&read_only=true&features=docs%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
+		},
 		"playwright": {
 			"command": "npx",
 			"args": ["-y", "@playwright/mcp"]
