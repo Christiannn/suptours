@@ -87,11 +87,7 @@ export const load = (async ({ locals: { supabase } }) => {
 			)
 		}));
 
-	const { data: homeTrustRow } = await supabase
-		.from('site_settings')
-		.select('value')
-		.eq('key', 'home_trust_image_url')
-		.maybeSingle();
+
 
 	const mockGalleryImages = [
 		{
@@ -128,8 +124,7 @@ export const load = (async ({ locals: { supabase } }) => {
 		activeGallery,
 		galleryImages: galleryImages && galleryImages.length > 0 ? galleryImages : mockGalleryImages,
 		featuredTours: featuredTours ?? [],
-		recentReviews: enrichedReviews,
-		homeTrustImageUrl: homeTrustRow?.value?.trim() ? homeTrustRow.value : null
+		recentReviews: enrichedReviews
 	};
 }) satisfies PageServerLoad;
 
