@@ -23,13 +23,20 @@ export const load = (async ({ locals: { safeGetSession, supabase } }) => {
             .limit(6)
         : { data: [] };
 
+    const { data: homeTrustRow } = await supabase
+        .from('site_settings')
+        .select('value')
+        .eq('key', 'home_trust_image_url')
+        .maybeSingle();
+
     return {
         user,
         session,
         isAdmin: profile?.is_admin ?? false,
         profileAvatarUrl: profile?.avatar_url ?? null,
         profileDisplayName: profile?.display_name ?? null,
-        myBookings: myBookings ?? []
+        myBookings: myBookings ?? [],
+        homeTrustImageUrl: homeTrustRow?.value?.trim() ? homeTrustRow.value : null
     };
 
 }) satisfies LayoutServerLoad;

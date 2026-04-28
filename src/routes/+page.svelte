@@ -129,32 +129,7 @@
 	</section>
 {/if}
 
-<!-- Value: independent of US Big Tech -->
-<section class="section home-trust" aria-labelledby="home-trust-heading">
-	<div class="container">
-		<div class="home-trust__card" class:home-trust__card--has-media={Boolean(data.homeTrustImageUrl)}>
-			{#if data.homeTrustImageUrl}
-				<div class="home-trust__media">
-					<img
-						src={data.homeTrustImageUrl}
-						alt=""
-						loading="lazy"
-						decoding="async"
-					/>
-				</div>
-			{/if}
-			<div class="home-trust__content">
-				<p class="home-trust__label">Not US Big Tech</p>
-				<h2 id="home-trust-heading" class="home-trust__title">Built for paddlers, not ad markets</h2>
-				<p class="home-trust__text">
-					SUP Tours is independent, community-led software for finding water time in Denmark and Europe—without
-					the surveillance-ad playbook or Silicon Valley growth-at-all-costs. Fewer middlemen, clearer intent:
-					trips, people, and shorelines you care about stay the point of the product.
-				</p>
-			</div>
-		</div>
-	</div>
-</section>
+
 
 <!-- Recent Reviews -->
 {#if data.recentReviews.length > 0}
@@ -563,97 +538,7 @@
 		color: var(--color-text-muted);
 	}
 
-	/* ---- TRUST / NOT BIG TECH (orange badge + optional admin image) ---- */
-	.home-trust {
-		padding: 2rem 0 2.25rem;
-		background: linear-gradient(
-			155deg,
-			#fff7ed 0%,
-			#ffedd5 38%,
-			rgba(var(--color-primary-rgb), 0.09) 100%
-		);
-		border-top: 1px solid rgba(234, 88, 12, 0.12);
-		border-bottom: 1px solid rgba(234, 88, 12, 0.1);
-	}
 
-	.home-trust__card {
-		display: grid;
-		gap: 1.35rem;
-		align-items: center;
-		max-width: 56rem;
-		margin: 0 auto;
-	}
-
-	.home-trust__card--has-media .home-trust__content {
-		text-align: left;
-	}
-
-	@media (min-width: 768px) {
-		.home-trust__card--has-media {
-			grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-			gap: 1.75rem;
-		}
-	}
-
-	.home-trust__media {
-		width: 100%;
-		max-width: 22rem;
-		justify-self: center;
-		border-radius: var(--border-radius);
-		overflow: hidden;
-		box-shadow: var(--shadow-card);
-		border: 1px solid rgba(234, 88, 12, 0.45);
-		background: var(--color-secondary);
-	}
-
-	.home-trust__media img {
-		display: block;
-		width: 100%;
-		height: auto;
-		min-height: 8rem;
-		max-height: 11rem;
-		object-fit: cover;
-	}
-
-	.home-trust__content {
-		text-align: center;
-		max-width: 38rem;
-		margin: 0 auto;
-	}
-
-	.home-trust__card--has-media .home-trust__content {
-		margin: 0;
-		max-width: none;
-	}
-
-	.home-trust__label {
-		display: inline-block;
-		margin: 0 0 0.75rem;
-		padding: 0.25rem 0.75rem;
-		background: #fff3eb;
-		color: #9a3412;
-		border: 1px solid #ea580c;
-		font-size: var(--font-size-xs);
-		font-weight: 700;
-		border-radius: var(--border-radius-full);
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-	}
-
-	.home-trust__title {
-		margin: 0 0 0.75rem;
-		font-size: var(--font-size-lg);
-		font-weight: 700;
-		line-height: var(--line-height-tight);
-		color: var(--color-text);
-	}
-
-	.home-trust__text {
-		margin: 0;
-		font-size: var(--font-size-sm);
-		line-height: var(--line-height-relaxed);
-		color: var(--color-text-muted);
-	}
 
 	/* ---- REVIEWS ---- */
 	.reviews-grid {

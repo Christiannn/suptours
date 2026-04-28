@@ -142,13 +142,50 @@
 
 	<!-- Footer (hidden on mobile when bottom nav shows) -->
 	<footer class="footer">
-		<div class="footer-inner">
-			<span class="footer-brand">SUP Tours</span>
-			<span class="footer-links">
-				<a href={resolve('/blog')}>Blog</a>
-				<a href={resolve('/community')}>Community</a>
-			</span>
-			<!-- <DonateButton /> -->
+		<div class="footer-grid container">
+			<!-- Column 1: Not US Big Tech -->
+			<div class="footer-section footer-trust">
+				{#if data.homeTrustImageUrl}
+					<div class="footer-trust__media">
+						<img src={data.homeTrustImageUrl} alt="" loading="lazy" />
+					</div>
+				{/if}
+				<div class="footer-trust__content">
+					<p class="footer-trust__label">Not US Big Tech</p>
+					<h3 class="footer-trust__title">Built for paddlers, not ad markets</h3>
+					<p class="footer-trust__text">
+						SUP Tours is independent, community-led software for finding water time in Denmark—without the surveillance-ad playbook.
+					</p>
+				</div>
+			</div>
+
+			<!-- Column 2: Om os -->
+			<div class="footer-section">
+				<h3 class="footer-section__title">Hvem er vi?</h3>
+				<p class="footer-section__text">
+					Vi er et uafhængigt fællesskab af paddlere, der elsker vandet. 
+					Vores platform er skabt til at gøre det nemt at finde og dele SUP-oplevelser.
+				</p>
+				<nav class="footer-nav">
+					<a href={resolve('/about')}>Læs om os</a>
+					<a href={resolve('/blog')}>Vores Blog</a>
+					<a href={resolve('/community')}>Community</a>
+				</nav>
+			</div>
+
+			<!-- Column 3: Info & Links -->
+			<div class="footer-section">
+				<h3 class="footer-section__title">Gå til</h3>
+				<nav class="footer-nav">
+					<a href={resolve('/terms')}>Betingelser</a>
+					<a href={resolve('/marketplace')}>Market</a>
+					<a href={resolve('/tours')}>Find Ture</a>
+				</nav>
+				<div class="footer-bottom-brand">
+					<span class="footer-brand">SUP Tours</span>
+					<p class="footer-copyright">2026 &copy; Uafhængig & Fællesskabsdrevet</p>
+				</div>
+			</div>
 		</div>
 	</footer>
 
@@ -445,36 +482,127 @@
 	/* ---- FOOTER ---- */
 	.footer {
 		border-top: var(--border-width) solid var(--color-border);
-		background: #2a3038;
-		padding: 1.5rem var(--section-padding);
+		background: #1e293b;
+		color: #f1f5f9;
+		padding: 3.5rem var(--section-padding);
 	}
 
-	.footer-inner {
+	.footer-grid {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 3rem;
+		max-width: 64rem;
+		margin: 0 auto;
+	}
+
+	@media (min-width: 768px) {
+		.footer-grid {
+			grid-template-columns: 1.5fr 1fr 1fr;
+			gap: 2rem;
+		}
+	}
+
+	.footer-section__title {
+		font-size: var(--font-size-base);
+		font-weight: 700;
+		color: #ffffff;
+		margin-bottom: 1.25rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+
+	.footer-section__text {
+		font-size: var(--font-size-sm);
+		color: #cbd5e1;
+		line-height: 1.6;
+		margin-bottom: 1.5rem;
+	}
+
+	.footer-nav {
 		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		flex-wrap: wrap;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.footer-nav a {
+		color: #94a3b8;
+		text-decoration: none;
+		font-size: var(--font-size-sm);
+		transition: color var(--transition-fast);
+	}
+
+	.footer-nav a:hover {
+		color: #ffffff;
+	}
+
+	/* Footer Trust Section (Not US Big Tech) */
+	.footer-trust {
+		display: flex;
+		flex-direction: column;
 		gap: 1rem;
+	}
+
+	.footer-trust__media {
+		width: 100%;
+		max-width: 18rem;
+		border-radius: var(--border-radius);
+		overflow: hidden;
+		border: 1px solid rgba(234, 88, 12, 0.3);
+		background: #2a3038;
+	}
+
+	.footer-trust__media img {
+		display: block;
+		width: 100%;
+		height: auto;
+		max-height: 8rem;
+		object-fit: cover;
+	}
+
+	.footer-trust__label {
+		display: inline-block;
+		margin-bottom: 0.75rem;
+		padding: 0.2rem 0.6rem;
+		background: rgba(234, 88, 12, 0.15);
+		color: #fb923c;
+		border: 1px solid #ea580c;
+		font-size: 10px;
+		font-weight: 700;
+		border-radius: var(--border-radius-full);
+		text-transform: uppercase;
+		letter-spacing: 0.08em;
+	}
+
+	.footer-trust__title {
+		font-size: var(--font-size-base);
+		font-weight: 700;
+		color: #ffffff;
+		margin-bottom: 0.5rem;
+	}
+
+	.footer-trust__text {
+		font-size: 13px;
+		color: #94a3b8;
+		line-height: 1.5;
+	}
+
+	.footer-bottom-brand {
+		margin-top: 2rem;
+		padding-top: 2rem;
+		border-top: 1px solid #334155;
 	}
 
 	.footer-brand {
+		font-size: var(--font-size-lg);
 		font-weight: 700;
-		color: #f4f6fa;
-	}
-
-	.footer-links {
-		display: flex;
-		gap: 1rem;
-	}
-
-	.footer-links a {
-		color: #c8d0db;
-		text-decoration: none;
-		font-size: var(--font-size-sm);
-	}
-
-	.footer-links a:hover {
 		color: #ffffff;
+		display: block;
+		margin-bottom: 0.25rem;
+	}
+
+	.footer-copyright {
+		font-size: 12px;
+		color: #64748b;
 	}
 
 	/* ---- BOTTOM NAV (mobile) ---- */
@@ -571,3 +699,4 @@
 		.footer { display: none; }
 	}
 </style>
+
