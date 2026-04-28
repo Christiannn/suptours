@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import CookieConsent from '$lib/Shared/CookieConsent.svelte';
+	import FooterPaddler from '$lib/Shared/FooterPaddler.svelte';
 
 	let { data, children } = $props();
 
@@ -187,7 +188,9 @@
 				</div>
 			</div>
 		</div>
+		<FooterPaddler />
 	</footer>
+
 
 	<!-- Mobile Bottom Navigation -->
 	<nav class="bottom-nav">
@@ -604,6 +607,7 @@
 		font-size: 12px;
 		color: #64748b;
 	}
+
 
 	/* ---- BOTTOM NAV (mobile) ---- */
 	.bottom-nav {

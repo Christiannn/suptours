@@ -141,7 +141,7 @@
 					<div class="review-card">
 						<div class="review-card__stars">
 							{#each Array(5) as _, i}
-								<span class="material-symbols-outlined review-star" class:review-star--filled={i < review.rating}>
+								<span class="material-symbols-outlined review-star" class:review-star--filled={i < review.rating_display}>
 									star
 								</span>
 							{/each}
@@ -775,21 +775,9 @@
 			font-size: 3rem;
 		}
 
-		.home-trust__media {
-			max-width: 20rem;
-		}
 	}
 
-	@media (max-width: 767px) {
-		.home-trust__media {
-			max-width: none;
-		}
 
-		.home-trust__media img {
-			min-height: 6.25rem;
-			max-height: 8.5rem;
-		}
-	}
 
 	@media (max-width: 900px) {
 		.featured-tours {

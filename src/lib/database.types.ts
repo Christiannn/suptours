@@ -710,28 +710,43 @@ export type Database = {
           approved: boolean
           comment: string | null
           created_at: string | null
+          declined: boolean
           id: string
-          rating: number
+          image_url: string | null
+          rating_access: number | null
+          rating_hosts: number | null
+          rating_nature: number | null
           tour_id: string
           user_id: string
+          visibility: number
         }
         Insert: {
           approved?: boolean
           comment?: string | null
           created_at?: string | null
+          declined?: boolean
           id?: string
-          rating: number
+          image_url?: string | null
+          rating_access?: number | null
+          rating_hosts?: number | null
+          rating_nature?: number | null
           tour_id: string
           user_id: string
+          visibility?: number
         }
         Update: {
           approved?: boolean
           comment?: string | null
           created_at?: string | null
+          declined?: boolean
           id?: string
-          rating?: number
+          image_url?: string | null
+          rating_access?: number | null
+          rating_hosts?: number | null
+          rating_nature?: number | null
           tour_id?: string
           user_id?: string
+          visibility?: number
         }
         Relationships: [
           {
