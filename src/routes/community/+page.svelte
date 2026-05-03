@@ -122,13 +122,16 @@
 						Quick filter
 					{:else}
 						<span class="comm-bar__filter-count">{activeTags.length}</span>
-						<button
+						<span
 							class="comm-bar__filter-clear"
-							onclick={(e) => { e.stopPropagation(); clearFilters(); }}
+							role="button"
+							tabindex="0"
 							aria-label="Clear filters"
+							onclick={(e) => { e.stopPropagation(); clearFilters(); }}
+							onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); clearFilters(); } }}
 						>
 							<span class="material-symbols-outlined">close</span>
-						</button>
+						</span>
 					{/if}
 				</button>
 
@@ -181,8 +184,8 @@
 				</div>
 
 				<div class="form-field">
-					<label>Tags <span class="form-field__hint">(optional)</span></label>
-					<div class="tag-picker">
+					<label for="community-tags">Tags <span class="form-field__hint">(optional)</span></label>
+					<div class="tag-picker" id="community-tags">
 						{#each COMMUNITY_TAGS as tag (tag)}
 							<button
 								type="button"
@@ -603,9 +606,7 @@
 		font-size: var(--font-size-sm);
 		color: var(--color-text-muted);
 		line-height: 1.5;
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
+		max-height: 3em; /* ~2 lines at line-height 1.5 */
 		overflow: hidden;
 	}
 
