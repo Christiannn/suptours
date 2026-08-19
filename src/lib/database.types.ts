@@ -421,8 +421,70 @@ export type Database = {
         }
         Relationships: []
       }
+      scraper_draft_meta: {
+        Row: {
+          confidence: number
+          difficulty: string | null
+          distance_km: number | null
+          evidence: string | null
+          extracted_at: string
+          identity_key: string | null
+          organizer: string | null
+          price: string | null
+          source_id: string | null
+          source_url: string
+          tour_id: string
+        }
+        Insert: {
+          confidence?: number
+          difficulty?: string | null
+          distance_km?: number | null
+          evidence?: string | null
+          extracted_at?: string
+          identity_key?: string | null
+          organizer?: string | null
+          price?: string | null
+          source_id?: string | null
+          source_url: string
+          tour_id: string
+        }
+        Update: {
+          confidence?: number
+          difficulty?: string | null
+          distance_km?: number | null
+          evidence?: string | null
+          extracted_at?: string
+          identity_key?: string | null
+          organizer?: string | null
+          price?: string | null
+          source_id?: string | null
+          source_url?: string
+          tour_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scraper_draft_meta_tour_id_fkey"
+            columns: ["tour_id"]
+            isOneToOne: true
+            referencedRelation: "tours"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scraper_draft_meta_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "scraper_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scraper_runs: {
         Row: {
+          details: Json | null
+          events_rejected: number
+          queries_run: number
+          raw_results: number
+          target_url: string | null
           completed_at: string | null
           error_message: string | null
           events_created: number
@@ -433,6 +495,11 @@ export type Database = {
           status: string
         }
         Insert: {
+          details?: Json | null
+          events_rejected?: number
+          queries_run?: number
+          raw_results?: number
+          target_url?: string | null
           completed_at?: string | null
           error_message?: string | null
           events_created?: number
@@ -443,6 +510,11 @@ export type Database = {
           status?: string
         }
         Update: {
+          details?: Json | null
+          events_rejected?: number
+          queries_run?: number
+          raw_results?: number
+          target_url?: string | null
           completed_at?: string | null
           error_message?: string | null
           events_created?: number
@@ -456,6 +528,13 @@ export type Database = {
       }
       scraper_sources: {
         Row: {
+          ai_confidence: number | null
+          consecutive_failures: number
+          found_via: string | null
+          kind: string | null
+          last_error: string | null
+          last_event_count: number
+          relevance_score: number | null
           created_at: string
           description: string | null
           domain: string
@@ -470,6 +549,13 @@ export type Database = {
           url: string
         }
         Insert: {
+          ai_confidence?: number | null
+          consecutive_failures?: number
+          found_via?: string | null
+          kind?: string | null
+          last_error?: string | null
+          last_event_count?: number
+          relevance_score?: number | null
           created_at?: string
           description?: string | null
           domain: string
@@ -484,6 +570,13 @@ export type Database = {
           url: string
         }
         Update: {
+          ai_confidence?: number | null
+          consecutive_failures?: number
+          found_via?: string | null
+          kind?: string | null
+          last_error?: string | null
+          last_event_count?: number
+          relevance_score?: number | null
           created_at?: string
           description?: string | null
           domain?: string
