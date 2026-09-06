@@ -5,7 +5,7 @@
  */
 import { env } from '$env/dynamic/private';
 
-function readEnv(key: string): string | undefined {
+export function readEnv(key: string): string | undefined {
 	const fromKit = (env as Record<string, string | undefined>)[key];
 	const fromNode = process.env[key];
 	const raw = fromKit ?? fromNode;

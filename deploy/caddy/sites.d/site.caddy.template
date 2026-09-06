@@ -1,0 +1,61 @@
+# Rendered by install-system-units.sh from deploy/config.env.
+# Placeholders: __PRIMARY_DOMAIN__ __API_HOST__ __APP_PORT__ __REDIRECT_HOSTS__
+
+__PRIMARY_DOMAIN__ {
+	encode zstd gzip
+
+	# SvelteKit content-hashes everything under this path, so it can never go
+	# stale and is always safe to cache hard. Biggest single bandwidth win as
+	# traffic grows.
+	@immutable path /_app/immutable/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	reverse_proxy 127.0.0.1:__APP_PORT__
+
+	log {
+		output file /var/log/caddy/__PRIMARY_DOMAIN__.log {
+			roll_size 20MiB
+			roll_keep 3
+			roll_keep_for 24h
+		}
+	}
+}
+
+# >>>REDIRECT_BLOCK
+# Canonical host redirect. www included: ORIGIN is the apex, and adapter-node
+# rejects POSTs whose Origin header does not match it.
+# Rendered only for hosts that actually resolve here — see install-system-units.sh.
+__REDIRECT_HOSTS__ {
+	redir https://__PRIMARY_DOMAIN__{uri} permanent
+}
+# <<<REDIRECT_BLOCK
+
+__API_HOST__ {
+	encode zstd gzip
+
+	# Supabase Studio is served by the same gateway on :8000, so proxying the
+	# whole host would put the dashboard on the public internet. Only the
+	# routes the browser actually needs are forwarded; everything else — the
+	# Studio UI, the pg-meta API — stays reachable only through an SSH tunnel.
+	@api path /rest/* /auth/* /storage/* /realtime/*
+	handle @api {
+		# Matches storage.file_size_limit = "50MiB" in supabase/config.toml.
+		# Without it, uploads fail at the proxy rather than at the API.
+		request_body {
+			max_size 50MiB
+		}
+		reverse_proxy 127.0.0.1:8000
+	}
+
+	handle {
+		respond "Not found" 404
+	}
+
+	log {
+		output file /var/log/caddy/__API_HOST__.log {
+			roll_size 20MiB
+			roll_keep 3
+			roll_keep_for 24h
+		}
+	}
+}

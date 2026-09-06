@@ -1,0 +1,9 @@
+[Unit]
+Description=__APP_NAME__ health watchdog
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=__DEPLOY_USER__
+ExecStart=__DEPLOY_DIR__/scripts/watchdog.sh
+SyslogIdentifier=__APP_NAME__-watchdog

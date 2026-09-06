@@ -50,7 +50,7 @@ async function fetchPage(url: string): Promise<string | null> {
 		const res = await fetch(url, {
 			headers: {
 				'User-Agent':
-					'Mozilla/5.0 (compatible; SUPToursBot/1.0; +https://suptours.dk)',
+					'Mozilla/5.0 (compatible; SUPToursBot/1.0; +https://suptur.dk)',
 				Accept: 'text/html,application/xhtml+xml',
 			},
 			signal: AbortSignal.timeout(12_000),

@@ -1,0 +1,106 @@
+# Customisations layered on top of the pinned upstream compose file.
+#
+# Kept as an override rather than edits to upstream/docker-compose.yml so that
+# upgrading Supabase is a matter of re-fetching one file (see UPSTREAM.md) and
+# re-reading this short list, instead of re-doing a merge by hand.
+#
+# Two rules this file exists to enforce:
+#
+#   1. Nothing is published to 0.0.0.0. Docker writes its own iptables rules
+#      that bypass ufw, so a port published the normal way is reachable from
+#      the internet no matter what the firewall says. Caddy is the only public
+#      door. (The gateway's own bind address comes from API_GW_HTTP_PORT in
+#      .env, which is set to `127.0.0.1:8000`.)
+#
+#   2. Services this project does not use never start. `functions` has nothing
+#      to run — the repo has no supabase/functions directory — and `supavisor`
+#      is pure overhead because the app reaches Postgres over HTTP through
+#      PostgREST, never directly. Assigning them a profile we never activate
+#      keeps them defined but dormant, which is reversible in one line.
+
+services:
+  db:
+    # Direct Postgres on loopback, for `supabase db push`, psql and pg_dump.
+    # Upstream publishes 5432 from supavisor; with the pooler off, nothing
+    # else would expose it.
+    ports:
+      - '127.0.0.1:5432:5432'
+    # Tuned for this box: 8 GB total, shared with ~8 other containers, the
+    # Node server and an occasional Vite build. Deliberately below the usual
+    # 25%-of-RAM guidance for shared_buffers because of those neighbours.
+    #
+    # shared_preload_libraries is intentionally NOT set here — the Supabase
+    # image already preloads pg_stat_statements, pg_cron, pg_net and friends,
+    # and overriding it would silently drop them.
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - log_min_messages=fatal
+      - -c
+      - shared_buffers=1536MB
+      - -c
+      - effective_cache_size=4GB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - work_mem=8MB
+      - -c
+      - max_wal_size=2GB
+      - -c
+      - min_wal_size=256MB
+      # SSD-backed storage: seeks are cheap and parallelism is plentiful, so
+      # the spinning-disk defaults push the planner away from index scans.
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      # Anything slower than a second is worth seeing in the logs.
+      - -c
+      - log_min_duration_statement=1000
+    mem_limit: 3g
+
+  rest:
+    environment:
+      # PostgREST holds a fixed-size pool, so this — not Postgres's
+      # max_connections — is the app's real concurrency ceiling.
+      PGRST_DB_POOL: 20
+    mem_limit: 512m
+
+  auth:
+    environment:
+      # Upstream wires up Google, GitHub and Azure but not Facebook, which the
+      # login page offers. Passed through here so enabling it later is an .env
+      # change; left empty (and therefore off) by default.
+      GOTRUE_EXTERNAL_FACEBOOK_ENABLED: ${FACEBOOK_ENABLED:-false}
+      GOTRUE_EXTERNAL_FACEBOOK_CLIENT_ID: ${FACEBOOK_CLIENT_ID:-}
+      GOTRUE_EXTERNAL_FACEBOOK_SECRET: ${FACEBOOK_SECRET:-}
+      GOTRUE_EXTERNAL_FACEBOOK_REDIRECT_URI: ${API_EXTERNAL_URL}/auth/v1/callback
+    mem_limit: 512m
+
+  realtime:
+    mem_limit: 512m
+
+  storage:
+    mem_limit: 512m
+
+  imgproxy:
+    mem_limit: 512m
+
+  meta:
+    mem_limit: 256m
+
+  studio:
+    mem_limit: 512m
+
+  api-gw:
+    mem_limit: 256m
+
+  # --- dormant: defined, never started ---------------------------------------
+  # To re-enable one, drop its profile here and re-run provision.sh.
+  functions:
+    profiles: ['unused']
+
+  supavisor:
+    profiles: ['unused']

@@ -1,0 +1,10 @@
+[Unit]
+Description=Back up __APP_NAME__ nightly
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target
