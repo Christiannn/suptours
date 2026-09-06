@@ -1,4 +1,5 @@
 import { PUBLIC_SUPABASE_ANON_KEY, PUBLIC_SUPABASE_URL } from '$env/static/public';
+import { getSupabaseInternalUrl } from '$lib/server/secrets';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -9,14 +10,20 @@ const startedAt = Date.now();
 
 /**
  * Ask PostgREST for its schema. It builds that by querying the database, so a
- * 2xx here proves Kong, PostgREST and Postgres are all answering — without
- * depending on any particular table existing or being readable under RLS.
+ * 2xx here proves the gateway, PostgREST and Postgres are all answering —
+ * without depending on any particular table existing or being readable under RLS.
+ *
+ * Uses the internal base URL when one is set. Going out via the public
+ * hostname would leave the machine, resolve DNS and complete a TLS handshake
+ * only to arrive back at a container on the same host — which is slower and,
+ * worse, reports the database as down whenever DNS or the certificate hiccups.
  */
 async function checkDatabase(): Promise<{ ok: true } | { ok: false; error: string }> {
 	const signal = AbortSignal.timeout(DB_TIMEOUT_MS);
+	const baseUrl = getSupabaseInternalUrl() ?? PUBLIC_SUPABASE_URL;
 
 	try {
-		const res = await fetch(`${PUBLIC_SUPABASE_URL}/rest/v1/`, {
+		const res = await fetch(`${baseUrl}/rest/v1/`, {
 			method: 'HEAD',
 			headers: { apikey: PUBLIC_SUPABASE_ANON_KEY },
 			signal

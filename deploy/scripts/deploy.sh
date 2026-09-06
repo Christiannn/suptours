@@ -127,7 +127,17 @@ log "Applying database migrations"
 	cd "${RELEASE_DIR}" || die "cannot enter ${RELEASE_DIR}"
 	# --include-seed is off by default and stays off: supabase/seed.sql creates
 	# the dev admin account (admin@suptours.dk / password) and must never run here.
-	npx --yes supabase db push \
+	# PGSSLMODE: the CLI always opens with a TLS handshake and the Supabase
+	# Postgres image does not serve TLS, so this fails with "server refused TLS
+	# connection" without it. An sslmode inside --db-url is silently ignored —
+	# only the environment variable is honoured (verified against CLI 2.95.5).
+	#
+	# Safe here: loopback to a port bound on 127.0.0.1 only, so it never reaches
+	# a network interface. Every other Supabase service already talks to
+	# Postgres in plaintext across the Docker bridge by upstream's own design,
+	# and anyone positioned to read this traffic could equally read
+	# POSTGRES_PASSWORD from the 0600 .env beside it.
+	PGSSLMODE=disable npx --yes supabase db push \
 		--db-url "postgresql://postgres:${POSTGRES_PASSWORD}@127.0.0.1:5432/postgres" \
 		--yes
 )

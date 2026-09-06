@@ -177,7 +177,11 @@ cd local
 
 1. Backs up the database and storage.
 2. Fetches the ref and builds it in a **new** release directory.
-3. Applies migrations — forward-only, seeds never.
+3. Applies migrations — forward-only, seeds never. This one connection runs
+   with `PGSSLMODE=disable`: the Supabase Postgres image does not serve TLS,
+   and the CLI ignores an `sslmode` inside `--db-url`. It is loopback to a port
+   bound on `127.0.0.1` only, and every Supabase service already talks to
+   Postgres in plaintext across the Docker bridge by upstream's own design.
 4. Swaps the `current` symlink atomically and restarts.
 5. Health-checks `/healthz`; **on failure, relinks the previous release and
    restarts it.**

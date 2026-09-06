@@ -209,6 +209,9 @@ log "Rendering ${SHARED_ENV}"
 	echo "ADDRESS_HEADER=x-forwarded-for"
 	echo "XFF_DEPTH=1"
 	echo "BODY_SIZE_LIMIT=52428800"
+	# Server-side calls reach the gateway directly rather than looping out
+	# through DNS, TLS and Caddy to hit a container on this same host.
+	echo "SUPABASE_INTERNAL_URL=http://127.0.0.1:8000"
 	echo "ENABLE_OAUTH=${ENABLE_OAUTH:-}"
 	echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}"
 	echo "GEMINI_API_KEY=${GEMINI_API_KEY:-}"
