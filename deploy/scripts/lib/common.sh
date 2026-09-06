@@ -75,10 +75,16 @@ compose() {
 }
 
 # Wait for an HTTP endpoint to answer 2xx. Used after every restart.
+#
+# Anything after url/retries/delay is passed straight to curl — needed for
+# routes the Supabase gateway treats as protected (everything under
+# /auth/v1/, /rest/v1/, etc.), which reject even a health check with 401
+# unless it carries a valid apikey header.
 wait_for_http() {
 	local url=$1 retries=${2:-${HEALTH_RETRIES}} delay=${3:-${HEALTH_RETRY_DELAY}} i
+	shift $(( $# > 3 ? 3 : $# ))
 	for ((i = 1; i <= retries; i++)); do
-		if curl -fsS --max-time 5 -o /dev/null "${url}"; then
+		if curl -fsS --max-time 5 -o /dev/null "$@" "${url}"; then
 			return 0
 		fi
 		sleep "${delay}"
