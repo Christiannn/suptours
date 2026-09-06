@@ -1,8 +1,11 @@
-import { redirect } from '@sveltejs/kit';
+import { createOAuthAction, getOAuthAvailability } from '$lib/server/oauth';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ url }) => {
-	return { next: url.searchParams.get('next') ?? '/' };
+	return {
+		next: url.searchParams.get('next') ?? '/',
+		oauth: getOAuthAvailability()
+	};
 };
 
 export const actions = {
@@ -10,7 +13,6 @@ export const actions = {
 		const formData = await request.formData();
 		const email = formData.get('email') as string;
 		const password = formData.get('password') as string;
-		const next = (formData.get('next') as string) ?? '/';
 
 		if (!email || !password) {
 			return { message: 'Email and password are required' };
@@ -29,23 +31,6 @@ export const actions = {
 		return { success: true, confirmEmail: true };
 	},
 
-	google: async ({ locals: { supabase }, url }) => {
-		const { data, error } = await supabase.auth.signInWithOAuth({
-			provider: 'google',
-			options: { redirectTo: `${url.origin}/auth/callback` }
-		});
-
-		if (error) return { message: error.message };
-		if (data.url) redirect(303, data.url);
-	},
-
-	facebook: async ({ locals: { supabase }, url }) => {
-		const { data, error } = await supabase.auth.signInWithOAuth({
-			provider: 'facebook',
-			options: { redirectTo: `${url.origin}/auth/callback` }
-		});
-
-		if (error) return { message: error.message };
-		if (data.url) redirect(303, data.url);
-	}
+	google: createOAuthAction('google'),
+	facebook: createOAuthAction('facebook')
 } satisfies Actions;

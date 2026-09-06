@@ -1,8 +1,12 @@
+import { createOAuthAction, getOAuthAvailability } from '$lib/server/oauth';
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ url }) => {
-	return { next: url.searchParams.get('next') ?? '/' };
+	return {
+		next: url.searchParams.get('next') ?? '/',
+		oauth: getOAuthAvailability()
+	};
 };
 
 export const actions = {
@@ -25,33 +29,6 @@ export const actions = {
 		redirect(303, next);
 	},
 
-	google: async ({ locals: { supabase }, url }) => {
-		const { data, error } = await supabase.auth.signInWithOAuth({
-			provider: 'google',
-			options: { redirectTo: `${url.origin}/auth/callback` }
-		});
-
-		if (error) {
-			return { message: error.message };
-		}
-
-		if (data.url) {
-			redirect(303, data.url);
-		}
-	},
-
-	facebook: async ({ locals: { supabase }, url }) => {
-		const { data, error } = await supabase.auth.signInWithOAuth({
-			provider: 'facebook',
-			options: { redirectTo: `${url.origin}/auth/callback` }
-		});
-
-		if (error) {
-			return { message: error.message };
-		}
-
-		if (data.url) {
-			redirect(303, data.url);
-		}
-	}
+	google: createOAuthAction('google'),
+	facebook: createOAuthAction('facebook')
 } satisfies Actions;

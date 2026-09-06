@@ -1,0 +1,93 @@
+# ---------------------------------------------------------------------------
+# Auto-deploy on push to main. INERT: the `.disabled` suffix means GitHub does
+# not read this file. Rename it to `deploy.yml` to switch it on.
+#
+# Before you do, understand what it needs.
+#
+# GitHub-hosted runners come from large, constantly-changing IP ranges. That is
+# fundamentally at odds with restricting SSH to your home IP, which is where
+# this setup is heading. You have three options:
+#
+#   1. Tailscale (recommended). The runner joins your tailnet and reaches the
+#      VPS over it, so port 22 stays closed to the public internet entirely.
+#      Add this step before "Deploy" and set SSH_HOST to the VPS's 100.x address:
+#
+#         - uses: tailscale/github-action@v3
+#           with:
+#             oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+#             oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+#             tags: tag:ci
+#
+#   2. Leave port 22 open to the world (key-only auth). Simplest; works with
+#      this file as written.
+#
+#   3. Don't use Actions. Run local/Deploy-Suptur.ps1 from your PC — which is
+#      the current setup, and needs no secrets in GitHub at all.
+#
+# Required repository secrets:
+#   SSH_HOST         85.190.105.95, or the Tailscale address under option 1
+#   SSH_USER         administrator
+#   SSH_PRIVATE_KEY  a deploy-only private key; add its .pub to
+#                    ~/.ssh/authorized_keys on the VPS
+#
+# Note this workflow does not build anything. The build happens on the VPS,
+# because PUBLIC_SUPABASE_ANON_KEY is inlined into the browser bundle at build
+# time and is generated on the server — building here would mean copying it
+# into GitHub secrets for no benefit.
+# ---------------------------------------------------------------------------
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref to deploy
+        required: false
+        default: main
+
+concurrency:
+  # Never let two deploys race for the release symlink.
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # svelte-check needs these to generate $env/static/public types; the real
+      # values are irrelevant to type checking.
+      - run: npm run check
+        env:
+          PUBLIC_SUPABASE_URL: https://api.example.invalid
+          PUBLIC_SUPABASE_ANON_KEY: placeholder
+
+  deploy:
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Authorise
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Deploy
+        run: |
+          ssh -i ~/.ssh/id_ed25519 "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "cd ~/suptours && git fetch --quiet origin && git checkout --quiet ${REF} && git pull --quiet --ff-only && deploy/scripts/deploy.sh --ref ${REF}"
+        env:
+          REF: ${{ inputs.ref || 'main' }}
+
+      - name: Clean up
+        if: always()
+        run: rm -f ~/.ssh/id_ed25519

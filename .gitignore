@@ -23,3 +23,8 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 # Playwright
 test-results
+
+# Self-hosted Supabase runtime state (never committed — see deploy/README.md)
+deploy/supabase/upstream/volumes/db/data/
+deploy/supabase/upstream/volumes/storage/
+deploy/**/.env

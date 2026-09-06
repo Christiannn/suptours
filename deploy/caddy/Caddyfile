@@ -1,0 +1,12 @@
+# Global Caddy config. One file per site lives in sites.d/, so adding the next
+# site to this box is a new file plus a new systemd unit — nothing in here changes.
+{
+	email admin@suptur.dk
+	servers {
+		# Trust the loopback only; Caddy is the edge, so client IPs arrive
+		# straight from the connection rather than a header we should believe.
+		trusted_proxies static 127.0.0.1/32 ::1
+	}
+}
+
+import /etc/caddy/sites.d/*.caddy

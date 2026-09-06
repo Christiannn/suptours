@@ -1,0 +1,39 @@
+[Unit]
+Description=__APP_NAME__ SvelteKit server
+Documentation=https://github.com/Christiannn/suptours
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__DEPLOY_USER__
+WorkingDirectory=__APP_DIR__/current
+ExecStart=/usr/bin/node __APP_DIR__/current/build
+
+# PORT, HOST, ORIGIN and the private keys all live here. ORIGIN in particular
+# is load-bearing: without it SvelteKit's CSRF check 403s every form POST.
+EnvironmentFile=__SHARED_ENV__
+
+Restart=always
+RestartSec=2
+# Allow a genuine crash loop to settle rather than hammering the box, but keep
+# the window wide enough that ordinary restarts never trip it.
+StartLimitBurst=10
+StartLimitIntervalSec=120
+
+# The app needs nothing outside its own release directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=__APP_DIR__
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=__APP_NAME__
+
+[Install]
+WantedBy=multi-user.target
