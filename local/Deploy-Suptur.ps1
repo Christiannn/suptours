@@ -33,7 +33,14 @@ if ($DryRun)     { $flags += '--dry-run' }
 if ($SkipBackup) { $flags += '--skip-backup' }
 
 $started = Get-Date
-$exit = Invoke-Remote "cd ~/suptours && git pull --quiet --ff-only && deploy/scripts/deploy.sh $($flags -join ' ')"
+$repoDir = $config['VPS_REPO_DIR']
+# A wrong path here otherwise surfaces as a confusing "deploy.sh: not found".
+$probe = Invoke-Remote "test -d $repoDir/deploy/scripts"
+if ($probe -ne 0) {
+    throw "No deploy scripts at ${repoDir} on the VPS. Fix VPS_REPO_DIR in deploy/config.env, or clone the repo there."
+}
+
+$exit = Invoke-Remote "cd $repoDir && git pull --quiet --ff-only && deploy/scripts/deploy.sh $($flags -join ' ')"
 $elapsed = [math]::Round(((Get-Date) - $started).TotalSeconds)
 
 if ($exit -eq 0) {

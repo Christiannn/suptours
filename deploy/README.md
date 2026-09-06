@@ -84,10 +84,13 @@ login works before finishing — if it doesn't, stop and fix that first.
 
 ### 3. Bootstrap the box
 
+The clone location must match `VPS_REPO_DIR` in `deploy/config.env` — that is
+what the PowerShell wrappers cd into.
+
 ```bash
 ssh suptur
-git clone https://github.com/Christiannn/suptours.git ~/suptours
-cd ~/suptours
+git clone https://github.com/Christiannn/suptours.git ~/suptur
+cd ~/suptur
 sudo deploy/bootstrap/01-bootstrap.sh
 exit          # docker group membership only applies to a new login
 ```
@@ -123,7 +126,7 @@ generate the file, fill it in, then run it again:
 
 ```bash
 ssh suptur
-cd ~/suptours
+cd ~/suptur
 deploy/scripts/provision.sh        # writes the blank secrets.env
 nano /srv/suptur/secrets.env
 deploy/scripts/provision.sh        # picks up what you filled in

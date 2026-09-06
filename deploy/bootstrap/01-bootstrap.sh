@@ -30,13 +30,35 @@ export DEBIAN_FRONTEND=noninteractive
 # --------------------------------------------------------------------------
 # 1. Base packages
 # --------------------------------------------------------------------------
+# Required and optional are installed separately. In one apt-get call a single
+# unavailable package aborts the whole step — which is what happens on a
+# release this new, where not every name has landed yet.
 log "Installing base packages"
 apt-get update -qq
 apt-get install -y -qq \
 	ca-certificates curl gnupg git rsync jq openssl \
-	ufw fail2ban unattended-upgrades msmtp msmtp-mta \
-	postgresql-client-17 debian-keyring debian-archive-keyring apt-transport-https
+	ufw fail2ban unattended-upgrades msmtp
 ok "base packages"
+
+# Nice to have, not required. Installed one at a time so a missing package is a
+# warning rather than the end of the run.
+#
+#   postgresql-client  ad-hoc psql from the host. NOT used by any script here:
+#                      backup.sh, provision.sh and maintenance.sh all run psql
+#                      and pg_dump inside the db container, which already has a
+#                      client matching the server version exactly. Unversioned
+#                      on purpose — postgresql-client-NN is release-specific and
+#                      Ubuntu 26.04 does not carry 17.
+#   msmtp-mta          provides the sendmail symlink. send_alert() invokes msmtp
+#                      directly, so this is cosmetic, and on a box that already
+#                      has an MTA installing it would displace that MTA.
+for pkg in postgresql-client msmtp-mta; do
+	if apt-get install -y -qq "${pkg}" 2>/dev/null; then
+		ok "${pkg}"
+	else
+		echo "  optional package unavailable, continuing without it: ${pkg}"
+	fi
+done
 
 # --------------------------------------------------------------------------
 # 2. Docker

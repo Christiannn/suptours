@@ -84,7 +84,7 @@ jobs:
       - name: Deploy
         run: |
           ssh -i ~/.ssh/id_ed25519 "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
-            "cd ~/suptours && git fetch --quiet origin && git checkout --quiet ${REF} && git pull --quiet --ff-only && deploy/scripts/deploy.sh --ref ${REF}"
+            "cd ~/suptur && git fetch --quiet origin && git checkout --quiet ${REF} && git pull --quiet --ff-only && deploy/scripts/deploy.sh --ref ${REF}"
         env:
           REF: ${{ inputs.ref || 'main' }}
 
