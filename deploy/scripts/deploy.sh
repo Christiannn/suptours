@@ -67,6 +67,17 @@ COMMIT="$(git -C "${REPO_DIR}" rev-parse --short "${RESOLVED}")"
 SUBJECT="$(git -C "${REPO_DIR}" log -1 --format=%s "${RESOLVED}")"
 log "Deploying ${COMMIT} — ${SUBJECT}"
 
+# The ref being deployed has to be one that can build for a server target.
+# Deploying a ref from before the adapter switch — `main` before this work is
+# merged, or an older tag — otherwise fails deep inside the build with an
+# adapter-auto error that gives no hint about the actual cause.
+if git -C "${REPO_DIR}" show "${RESOLVED}:svelte.config.js" 2>/dev/null | grep -q 'adapter-auto'; then
+	die "${RESOLVED} still uses @sveltejs/adapter-auto, which cannot build for a VPS.
+     Deploy a ref that has the adapter-node switch:
+       deploy.sh --ref claude/suptur-vps-deployment-ncnj8t
+     or merge that branch into ${GIT_BRANCH} and re-run."
+fi
+
 if ((DRY_RUN)); then
 	ok "Dry run: would deploy ${COMMIT} to ${SITE_ORIGIN}"
 	exit 0
