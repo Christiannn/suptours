@@ -21,11 +21,14 @@ __PRIMARY_DOMAIN__ {
 	}
 }
 
+# >>>REDIRECT_BLOCK
 # Canonical host redirect. www included: ORIGIN is the apex, and adapter-node
 # rejects POSTs whose Origin header does not match it.
+# Rendered only for hosts that actually resolve here — see install-system-units.sh.
 __REDIRECT_HOSTS__ {
 	redir https://__PRIMARY_DOMAIN__{uri} permanent
 }
+# <<<REDIRECT_BLOCK
 
 __API_HOST__ {
 	encode zstd gzip

@@ -19,6 +19,60 @@ DEPLOY_USER="${SUDO_USER:-$(stat -c '%U' "${DEPLOY_DIR}")}"
 APP_DIR="${DEPLOY_ROOT}/app"
 SHARED_ENV="${APP_DIR}/shared/.env"
 
+# --------------------------------------------------------------------------
+# Only ask Caddy for certificates for hostnames that actually point here.
+#
+# A host in REDIRECT_DOMAINS whose DNS is not set yet would send Caddy into an
+# endless ACME retry loop against a name it can never validate. The primary
+# site still works — certificates are issued per site — but the log fills with
+# failures and the redirect does nothing.
+#
+# Comparing against whatever PRIMARY_DOMAIN resolves to, rather than the
+# machine's own interface addresses, keeps this correct behind NAT.
+# --------------------------------------------------------------------------
+
+resolve_addrs() {
+	getent ahosts "$1" 2>/dev/null | awk '{print $1}' | sort -u
+}
+
+filter_redirect_hosts() {
+	local primary_addrs kept=() skipped=() host addrs
+
+	primary_addrs="$(resolve_addrs "${PRIMARY_DOMAIN}")"
+
+	# If the primary itself does not resolve, the check has no reference point.
+	# Pass everything through untouched rather than silently dropping the lot
+	# because of a transient DNS problem — and say so, because Caddy is about
+	# to fail on the main site too.
+	if [[ -z ${primary_addrs} ]]; then
+		echo "  WARNING: ${PRIMARY_DOMAIN} does not resolve. Caddy will not be able" >&2
+		echo "           to get a certificate for it. Leaving redirect hosts as-is." >&2
+		printf '%s' "${REDIRECT_DOMAINS}"
+		return 0
+	fi
+
+	for host in ${REDIRECT_DOMAINS}; do
+		addrs="$(resolve_addrs "${host}")"
+		if [[ -z ${addrs} ]]; then
+			skipped+=("${host} (does not resolve)")
+		elif comm -12 <(printf '%s\n' "${addrs}") <(printf '%s\n' "${primary_addrs}") | grep -q .; then
+			kept+=("${host}")
+		else
+			skipped+=("${host} (resolves elsewhere: $(echo "${addrs}" | tr '\n' ' '))")
+		fi
+	done
+
+	if ((${#skipped[@]})); then
+		echo "  Skipping redirect hosts — no certificate will be requested for them:" >&2
+		printf '    %s\n' "${skipped[@]}" >&2
+		echo "  Point them at ${PRIMARY_DOMAIN}'s address and re-run provision.sh to enable." >&2
+	fi
+
+	printf '%s' "${kept[*]}"
+}
+
+USABLE_REDIRECT_HOSTS="$(filter_redirect_hosts)"
+
 render() {
 	sed \
 		-e "s|__APP_NAME__|${APP_NAME}|g" \
@@ -29,8 +83,14 @@ render() {
 		-e "s|__PRIMARY_DOMAIN__|${PRIMARY_DOMAIN}|g" \
 		-e "s|__API_HOST__|${API_HOST}|g" \
 		-e "s|__APP_PORT__|${APP_PORT}|g" \
-		-e "s|__REDIRECT_HOSTS__|${REDIRECT_DOMAINS// /, }|g" \
-		"$1"
+		-e "s|__REDIRECT_HOSTS__|${USABLE_REDIRECT_HOSTS// /, }|g" \
+		"$1" \
+	| if [[ -n ${USABLE_REDIRECT_HOSTS} ]]; then
+			grep -v 'REDIRECT_BLOCK'
+		else
+			# An empty host list would render as `{ ... }`, which Caddy rejects.
+			sed '/# >>>REDIRECT_BLOCK/,/# <<<REDIRECT_BLOCK/d'
+		fi
 }
 
 # Write only if the content differs, so `systemctl restart` stays rare.
