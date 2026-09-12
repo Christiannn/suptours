@@ -1,0 +1,78 @@
+# Staging-only layer, applied third by compose() in lib/common.sh — after
+# upstream/docker-compose.yml and docker-compose.override.yml.
+#
+# Why it exists: production's memory ceilings add up to roughly 6.6 GB on an
+# 8 GB box. Those are limits rather than reservations, so production is not
+# actually using all of it — but running a second full stack at the same
+# ceilings would mean two sets of containers that are each individually
+# entitled to more memory than the machine has.
+#
+# Staging serves one person clicking through a feature branch, not the public,
+# so it is sized for that. Total ceiling here is about 3 GB.
+#
+# Note that `command` REPLACES rather than merges: Compose takes the last
+# definition of a sequence wholesale, so the Postgres flags have to be restated
+# in full. Dropping one here would silently revert it to the image default.
+
+services:
+  db:
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - log_min_messages=fatal
+      # A sixth of production's. Staging's working set is the seed data, which
+      # fits several times over.
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=512MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - max_wal_size=512MB
+      - -c
+      - min_wal_size=128MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      # Kept identical to production on purpose: catching a slow query here is
+      # the entire point of having a staging environment.
+      - -c
+      - log_min_duration_statement=1000
+    mem_limit: 1g
+
+  rest:
+    environment:
+      # One person, not the public. Twenty connections would be twenty idle
+      # ones.
+      PGRST_DB_POOL: 5
+    mem_limit: 256m
+
+  auth:
+    mem_limit: 256m
+
+  realtime:
+    mem_limit: 256m
+
+  storage:
+    mem_limit: 256m
+
+  imgproxy:
+    mem_limit: 256m
+
+  meta:
+    mem_limit: 128m
+
+  # Studio stays — being able to look at staging's tables is most of the reason
+  # to have staging — but it is the single hungriest non-database container, so
+  # it gets the tightest useful ceiling.
+  studio:
+    mem_limit: 384m
+
+  api-gw:
+    mem_limit: 128m
