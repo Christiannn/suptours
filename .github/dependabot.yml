@@ -1,0 +1,55 @@
+# Dependency updates.
+#
+# Everything targets `develop`, never `main`. Dependabot defaults to the
+# repository's default branch, which is already develop — naming it explicitly
+# means that stays true even if the default ever changes, and it makes the
+# intent readable without checking repository settings.
+#
+# Updates are grouped hard on purpose. This repo has one maintainer: twenty
+# separate PRs a week get ignored, and a habit of ignoring Dependabot is worse
+# than a slightly coarser update. One grouped PR is something you actually read.
+
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Copenhagen
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    commit-message:
+      prefix: 'deps'
+      prefix-development: 'deps(dev)'
+    groups:
+      # One PR for the whole routine upgrade. If CI is green it is a one-click
+      # merge; if it is red, the group is small enough to bisect by hand.
+      routine:
+        patterns: ['*']
+        update-types: [minor, patch]
+      # Majors are separated because they are the ones that need reading.
+      # Grouping by ecosystem keeps a Svelte or Vite major from arriving as
+      # five unrelated PRs that only work together.
+      svelte-major:
+        patterns: ['svelte', 'svelte-*', '@sveltejs/*', 'vite', '@vitest/*', 'vitest*']
+        update-types: [major]
+      supabase-major:
+        patterns: ['@supabase/*', 'supabase']
+        update-types: [major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Copenhagen
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: 'ci'
+    groups:
+      actions:
+        patterns: ['*']

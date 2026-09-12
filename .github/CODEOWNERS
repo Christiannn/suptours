@@ -1,0 +1,18 @@
+# Every pull request requests a review from the maintainer automatically.
+#
+# On a public repository with one maintainer this is less about gatekeeping —
+# nobody else has write access anyway — and more about making sure a PR never
+# sits unnoticed, and that the two paths below are never skimmed.
+
+*                       @Christiannn
+
+# Touching these can take the live site down or expose the box. They deserve a
+# second read even when the diff looks small.
+/deploy/                @Christiannn
+/.github/               @Christiannn
+/local/                 @Christiannn
+
+# Migrations are append-only once they reach staging: editing one that has
+# already run leaves staging and production silently disagreeing about the
+# schema. See CLAUDE.md.
+/supabase/migrations/   @Christiannn

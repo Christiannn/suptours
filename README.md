@@ -38,34 +38,44 @@ Find - Share - Plan - Participate - and Talk alot about SUP tours and adventures
    # Edit the new file, then: npm run reset
    ```
 
-### Deploy to remote Supabase (only to DEV db)
-
-1. **Link your project** (once):
-   ```bash
-   npx supabase login
-   npx supabase link --project-ref <your-project-ref>
-   ```
-   Get the project ref from the dashboard URL: `https://supabase.com/dashboard/project/<ref>`.
-
-2. **Push migrations to remote**:
-   ```bash
-   npm run db:push
-   ```
-
-### Git branch workflow (optional)
-
-- **`main`** – Production-ready migrations. Run `npm run db:push` from here to deploy.
-- **`dev`** – Work-in-progress migrations. Use `npm run reset` locally to test before merging to `main`.
-
-Git branches hold different migration sets, use on DEV DB - before merge and use on PROD.
-
 ---
-Repo settings:
-- Protected `main` (PR required, no direct pushes).
-- Keep active development on `dev`.
-- Tag stable releases from `main` (for example `v1.2.0`).
 
-Codebase enviroments:
-- `main`: production-ready state. Supabase:Prod db.
-- `dev`: integration branch. Supabase:dev db.
-- `feature/fix/*`: work branches. (local supabase)
+## Branches and environments
+
+Three long-lived branches, each with a running environment:
+
+| Branch | Environment | Database |
+|---|---|---|
+| `develop` *(default)* | your machine, `npm run dev` | local Docker Supabase |
+| `staging` | https://staging.suptur.dk | its own Supabase on the VPS |
+| `main` | https://suptur.dk | production Supabase on the VPS |
+
+All work starts on `develop` — features, fixes, hotfixes, everything. Outside
+contributions arrive as pull requests against `develop`.
+
+`staging` and `main` are **promoted, never committed to**:
+
+```powershell
+cd local
+.\Promote-Suptur.ps1 -To staging     # develop -> staging
+.\Promote-Suptur.ps1 -To main        # staging -> main, and tags the release
+```
+
+Promotion is a fast-forward push, so afterwards all three branches point at the
+same commit and there is never a merge to resolve. Promoting does not deploy —
+that stays a separate, deliberate step:
+
+```powershell
+.\Deploy-Suptur.ps1 -Env staging
+.\Deploy-Suptur.ps1 -Env production
+```
+
+Full detail — why the fast-forward matters, and how migrations behave across
+three environments — is in [CLAUDE.md](./CLAUDE.md). Deployment, the VPS and
+backups are in [deploy/README.md](./deploy/README.md). Security reports go
+through [SECURITY.md](./SECURITY.md).
+
+> **`npm run db:push` is legacy.** It targets a *linked hosted* Supabase
+> project from before this repo moved to a self-hosted VPS. Migrations now
+> reach staging and production through `deploy/scripts/deploy.sh`, which
+> applies them to the VPS Postgres before swapping the new code in.
