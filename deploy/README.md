@@ -1,12 +1,17 @@
 # Deploying suptur.dk
 
-Self-hosted SvelteKit + Supabase on one VPS, with room for more sites later.
+Self-hosted SvelteKit + Supabase on one VPS, running two independent
+environments — production and staging — with room for more.
 
     Ubuntu 26.04 · 4 vCPU · 8 GB · 200 GB
     85.190.105.95 · 2001:880:a:321::28d · user: administrator
 
 Everything here is safe to run more than once. Re-running rebuilds the
 deployment; it never deletes the database or uploaded files.
+
+Every script takes `--env production` or `--env staging` and **refuses to
+guess**. Guessing is how a staging provision ends up pointed at the live
+database.
 
 ---
 
@@ -21,26 +26,52 @@ deployment; it never deletes the database or uploaded files.
        │
        ├─ suptur.dk                         → 127.0.0.1:3000   SvelteKit
        ├─ www.suptur.dk, suptours.dk, www.  → 301 → suptur.dk
-       └─ api.suptur.dk                     → 127.0.0.1:8000   Supabase
-             (only /rest /auth /storage /realtime — Studio is NOT forwarded)
+       ├─ api.suptur.dk                     → 127.0.0.1:8000   Supabase
+       │
+       ├─ staging.suptur.dk                 → 127.0.0.1:3001   SvelteKit
+       │     (basic_auth + noindex; /healthz deliberately exempt)
+       └─ api-staging.suptur.dk             → 127.0.0.1:8001   Supabase
 
-  Docker, all bound to 127.0.0.1:
-    api-gw:8000 · auth · rest · realtime · storage · imgproxy · meta · studio · db:5432
+  Only /rest /auth /storage /realtime are forwarded on either API host.
+  Studio is served by the same gateway and is NOT forwarded — tunnel to it.
+
+  Two full Docker stacks, every port bound to 127.0.0.1:
+    production  api-gw:8000 · db:5432 · auth · rest · realtime · storage · …
+    staging     api-gw:8001 · db:5433 · (same, at a third of the memory)
 ```
 
+The two share the machine, Caddy and the Docker daemon. They share nothing
+else: separate containers (Compose project names `suptur` and
+`suptur-staging`), separate Postgres, separate secrets, separate systemd units,
+separate release directories.
+
 ```
-/srv/suptur/
+/srv/suptur/                      and  /srv/suptur-staging/
 ├── app/
-│   ├── releases/<stamp>-<sha>/   build + node_modules (newest 5 kept)
+│   ├── releases/<stamp>-<sha>/   build + node_modules (newest 5 / 3 kept)
 │   ├── current -> releases/…     atomic symlink; the live release
 │   └── shared/.env               runtime env, 0600
 ├── supabase/
 │   ├── .env                      generated once, 0600  ← the crown jewels
 │   └── volumes/                  Postgres data + storage objects  ← never deleted
-├── backups/                      nightly + pre-deploy, 14 days
+├── backups/                      production only; staging sets ENABLE_BACKUPS=0
 ├── state/                        watchdog alert state
+├── basic-auth.env                staging only: generated, 0600
+├── deploy.lock                   held for the duration of a deploy
 └── secrets.env                   yours: SMTP, alert email  ← fill this in
 ```
+
+And two clones of this repository, each marked with its own `.deploy-env`:
+
+```
+~/suptours           checked out on main      → production
+~/suptours-staging   checked out on staging   → staging
+```
+
+That separation is deliberate. The deploy *scripts* run from the clone's
+working tree while the app is built from `git archive <ref>`, so staging
+exercises a change to the deploy machinery itself before production ever sees
+it.
 
 ---
 
@@ -53,8 +84,8 @@ before you provision. Allow 15–60 minutes to propagate.
 
 | Type | Name | Value |
 |---|---|---|
-| A | `@`, `www`, `api` | `85.190.105.95` |
-| AAAA | `@`, `www`, `api` | `2001:880:a:321::28d` |
+| A | `@`, `www`, `api`, `staging`, `api-staging` | `85.190.105.95` |
+| AAAA | `@`, `www`, `api`, `staging`, `api-staging` | `2001:880:a:321::28d` |
 | CAA | `@` | `0 issue "letsencrypt.org"` |
 | TXT | `@` | `v=spf1 -all` |
 | TXT | `_dmarc` | `v=DMARC1; p=reject;` |
@@ -69,7 +100,7 @@ once SMTP is live, replace the SPF record with your provider's include.
 Check from your PC:
 
 ```powershell
-Resolve-DnsName suptur.dk, www.suptur.dk, api.suptur.dk
+Resolve-DnsName suptur.dk, www.suptur.dk, api.suptur.dk, staging.suptur.dk, api-staging.suptur.dk
 ```
 
 ### 2. SSH key
@@ -124,9 +155,9 @@ generate the file, fill it in, then run it again:
 ```bash
 ssh suptur
 cd ~/suptours
-deploy/scripts/provision.sh        # writes the blank secrets.env
+deploy/scripts/provision.sh --env production   # writes the blank secrets.env
 nano /srv/suptur/secrets.env
-deploy/scripts/provision.sh        # picks up what you filled in
+deploy/scripts/provision.sh --env production   # picks up what you filled in
 ```
 
 What goes in it:
@@ -151,24 +182,79 @@ deployed client until the next build.
 
 ```powershell
 cd local
-.\Deploy-Suptur.ps1
+.\Deploy-Suptur.ps1 -Env production
+```
+
+### 7. Stand up staging
+
+Once production is running, staging is one more clone and one more provision.
+Nothing about it touches production — different root, different ports,
+different Compose project, different units.
+
+```bash
+ssh suptur
+git clone https://github.com/Christiannn/suptours.git ~/suptours-staging
+cd ~/suptours-staging
+git checkout staging
+deploy/scripts/provision.sh --env staging
+```
+
+Provisioning prints the generated basic-auth password **once**. Save it then —
+it is not stored anywhere in plaintext. (Lost it? Delete
+`/srv/suptur-staging/basic-auth.env` and re-provision to mint a new one.)
+
+Then, from your PC:
+
+```powershell
+.\Deploy-Suptur.ps1 -Env staging
+```
+
+Before trusting it, confirm production was not disturbed:
+
+```bash
+ssh suptur 'systemctl status suptur --no-pager | head -5; ls -la /etc/systemd/system/suptur*'
+curl -sSI https://suptur.dk/healthz | head -1
 ```
 
 ---
 
 ## Day to day
 
+`-Env` is mandatory on everything that can change something.
+
 | | |
 |---|---|
-| Deploy `main` | `.\Deploy-Suptur.ps1` |
-| Deploy a branch | `.\Deploy-Suptur.ps1 -Ref development` |
-| See what would deploy | `.\Deploy-Suptur.ps1 -DryRun` |
-| Roll back | `ssh suptur 'deploy/scripts/rollback.sh'` |
-| Supabase Studio | `.\Open-Studio.ps1` |
-| Back up now | `.\Invoke-Backup.ps1` (`-Download` to fetch it) |
-| App logs | `ssh suptur 'journalctl -u suptur -f'` |
-| Supabase logs | `ssh suptur 'cd /srv/suptur/supabase && docker compose logs -f auth'` |
-| Container status | `ssh suptur 'cd /srv/suptur/supabase && docker compose ps'` |
+| Promote `develop` → `staging` | `.\Promote-Suptur.ps1 -To staging` |
+| Promote `staging` → `main` | `.\Promote-Suptur.ps1 -To main` |
+| Deploy staging | `.\Deploy-Suptur.ps1 -Env staging` |
+| Deploy a branch to staging | `.\Deploy-Suptur.ps1 -Env staging -Ref feature/x` |
+| Deploy production | `.\Deploy-Suptur.ps1 -Env production` (makes you type the domain) |
+| See what would deploy | `.\Deploy-Suptur.ps1 -Env staging -DryRun` |
+| Roll back | `ssh suptur 'cd ~/suptours && deploy/scripts/rollback.sh --env production'` |
+| Supabase Studio | `.\Open-Studio.ps1 -Env staging` |
+| Back up now | `.\Invoke-Backup.ps1 -Env production -Download` |
+| Prove a backup restores | `.\Invoke-Backup.ps1 -Env production -Verify` |
+| Wipe and reseed staging's DB | `ssh suptur 'cd ~/suptours-staging && deploy/scripts/reset-staging-db.sh --env staging'` |
+| App logs | `ssh suptur 'journalctl -u suptur -f'` (or `suptur-staging`) |
+| Supabase logs | `ssh suptur 'cd /srv/suptur/supabase && docker compose -p suptur logs -f auth'` |
+| Container status | `ssh suptur 'docker ps --format "table {{.Names}}\t{{.Status}}"'` |
+
+Note the `-p` on the Compose commands. Without it Compose names the project
+after the directory — `supabase` for both environments — and you would be
+looking at, or restarting, the wrong stack.
+
+### Reclaiming memory
+
+Staging is sized to coexist with production (about 3 GB of ceilings against
+production's 6.6 GB), but if the box gets tight you can simply stop it. Its
+data survives; deploys are manual anyway.
+
+```bash
+ssh suptur 'cd /srv/suptur-staging/supabase && docker compose -p suptur-staging stop'
+ssh suptur 'sudo systemctl stop suptur-staging'
+```
+
+Bring it back with `docker compose -p suptur-staging start` and a deploy.
 
 ### What a deploy does
 
@@ -228,8 +314,19 @@ docker compose restart storage
 
 ## Known gaps
 
+0. **Backups never leave the box.** `backup.sh` writes to `/srv/suptur/backups`
+   and nothing copies them off, so the one failure that would actually destroy
+   the site — losing the machine — takes the backups with it. Until an off-box
+   copy exists this is the biggest hole in the setup. Fix it by registering
+   `Invoke-Backup.ps1 -Env production -Download -Yes` as a weekly Windows
+   Scheduled Task, or by pointing rclone at object storage. And run
+   `verify-backup.sh` occasionally: a backup nobody has restored is a
+   hypothesis, not a backup.
+
 1. **No SMTP until you configure it.** Signup works (`config.toml` has
    `enable_confirmations = false`), but password reset fails silently.
+   Leave staging's SMTP blank — staging has no real users, and an SMTP-enabled
+   staging is how test activity ends up emailing real addresses.
 2. **Google/Facebook login is off.** The buttons only render when `ENABLE_OAUTH`
    lists a provider *and* the credentials are in `secrets.env`. Register
    `https://api.suptur.dk/auth/v1/callback` with the provider first.
