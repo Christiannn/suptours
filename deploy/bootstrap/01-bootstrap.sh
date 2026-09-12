@@ -11,8 +11,11 @@
 set -Eeuo pipefail
 
 DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# shellcheck source=/dev/null
-source "${DEPLOY_DIR}/config.env"
+
+# Deliberately environment-agnostic: this script sets up the MACHINE — Docker,
+# Node, Caddy, swap, the firewall — and production and staging then share it.
+# Everything per-site (the directory tree under /srv, the sudoers rule, the
+# systemd units) is installed once per environment by install-system-units.sh.
 
 [[ ${EUID} -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
 
@@ -160,27 +163,13 @@ EOF
 systemctl enable --now fail2ban >/dev/null
 ok "fail2ban active"
 
-# --------------------------------------------------------------------------
-# 6. Passwordless sudo for the automated steps only
-# --------------------------------------------------------------------------
-# Deliberately narrow. Provisioning still prompts for a password — it is run by
-# hand. Only the unattended paths (deploy's restart, the nightly journal trim)
-# are exempted.
-log "Granting narrow passwordless sudo to ${DEPLOY_USER}"
-SUDOERS=/etc/sudoers.d/60-${APP_NAME}-deploy
-cat > "${SUDOERS}" <<EOF
-Cmnd_Alias ${APP_NAME^^}_SVC = /usr/bin/systemctl restart ${APP_NAME}.service, \\
-	/usr/bin/systemctl start ${APP_NAME}.service, \\
-	/usr/bin/systemctl stop ${APP_NAME}.service
-Cmnd_Alias ${APP_NAME^^}_JOURNAL = /usr/bin/journalctl --vacuum-time=24h
-${DEPLOY_USER} ALL=(root) NOPASSWD: ${APP_NAME^^}_SVC, ${APP_NAME^^}_JOURNAL
-EOF
-chmod 440 "${SUDOERS}"
-visudo -cf "${SUDOERS}" >/dev/null || { rm -f "${SUDOERS}"; echo "sudoers rejected" >&2; exit 1; }
-ok "sudoers installed"
+# The narrow passwordless-sudo rule used to live here. It moved to
+# install-system-units.sh because it names ${APP_NAME}.service, and there is
+# now more than one of those — bootstrap runs once for the machine, that runs
+# once per environment.
 
 # --------------------------------------------------------------------------
-# 7. Firewall — permissive for now, locked down in the later phase
+# 6. Firewall — permissive for now, locked down in the later phase
 # --------------------------------------------------------------------------
 # Web traffic is open to the world on both IPv4 and IPv6; that is the point of
 # the box. SSH is left open too at this stage — restricting it to your home IP
@@ -196,11 +185,11 @@ ufw --force enable >/dev/null
 ok "ufw enabled"
 
 # --------------------------------------------------------------------------
-# 8. Directory tree
+# 7. Shared directories
 # --------------------------------------------------------------------------
-log "Creating ${DEPLOY_ROOT}"
-mkdir -p "${DEPLOY_ROOT}"
-chown -R "${DEPLOY_USER}:${DEPLOY_USER}" "${DEPLOY_ROOT}"
+# Each environment's own root under /srv is created by install-system-units.sh,
+# which runs as root once per site. Only the machine-wide bits belong here.
+log "Creating shared directories"
 mkdir -p /var/log/caddy
 chown -R caddy:caddy /var/log/caddy 2>/dev/null || true
 

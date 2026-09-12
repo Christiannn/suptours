@@ -5,5 +5,5 @@ After=network-online.target
 [Service]
 Type=oneshot
 User=__DEPLOY_USER__
-ExecStart=__DEPLOY_DIR__/scripts/watchdog.sh
+ExecStart=__DEPLOY_DIR__/scripts/watchdog.sh --env __DEPLOY_ENV__
 SyslogIdentifier=__APP_NAME__-watchdog

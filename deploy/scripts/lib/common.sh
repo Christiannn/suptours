@@ -6,18 +6,7 @@ set -Eeuo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
 DEPLOY_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 REPO_DIR="$(cd "${DEPLOY_DIR}/.." && pwd)"
-
-# shellcheck source=/dev/null
-source "${DEPLOY_DIR}/config.env"
-
-SUPABASE_DIR="${DEPLOY_ROOT}/supabase"
-APP_DIR="${DEPLOY_ROOT}/app"
-RELEASES_DIR="${APP_DIR}/releases"
-CURRENT_LINK="${APP_DIR}/current"
-SHARED_ENV="${APP_DIR}/shared/.env"
-SECRETS_ENV="${DEPLOY_ROOT}/secrets.env"
-BACKUP_DIR="${DEPLOY_ROOT}/backups"
-STATE_DIR="${DEPLOY_ROOT}/state"
+ENVIRONMENTS_DIR="${DEPLOY_DIR}/environments"
 
 if [[ -t 1 ]]; then
 	_C_RESET=$'\033[0m'; _C_BLUE=$'\033[34m'; _C_YELLOW=$'\033[33m'
@@ -33,6 +22,76 @@ die()  { printf '%s\n' "${_C_RED}ERR${_C_RESET} $*" >&2; exit 1; }
 
 # Report which command failed rather than exiting silently under `set -e`.
 trap 'die "line ${LINENO}: \`${BASH_COMMAND}\` failed"' ERR
+
+# --------------------------------------------------------------------------
+# Which environment are we operating on?
+#
+# There is deliberately NO default. Guessing "production" is how someone ends
+# up pointing a staging provision at the live database, so a script that cannot
+# work out its environment stops and says so.
+#
+# Order: --env on the command line, then SUPTUR_ENV, then the .deploy-env
+# marker written into each clone by provision.sh. Because this file is sourced
+# with no arguments of its own, "$@" here is the CALLING script's argument
+# list — so every script gets --env for free.
+# --------------------------------------------------------------------------
+_env_from_args() {
+	local prev='' arg
+	for arg in "$@"; do
+		[[ ${prev} == --env || ${prev} == -e ]] && { printf '%s' "${arg}"; return 0; }
+		[[ ${arg} == --env=* ]] && { printf '%s' "${arg#--env=}"; return 0; }
+		prev="${arg}"
+	done
+}
+
+DEPLOY_ENV="$(_env_from_args "$@")"
+[[ -n ${DEPLOY_ENV} ]] || DEPLOY_ENV="${SUPTUR_ENV:-}"
+if [[ -z ${DEPLOY_ENV} && -f ${REPO_DIR}/.deploy-env ]]; then
+	DEPLOY_ENV="$(tr -d '[:space:]' < "${REPO_DIR}/.deploy-env")"
+fi
+
+if [[ -z ${DEPLOY_ENV} ]]; then
+	die "no environment selected.
+     Pass --env <name>, or write one into ${REPO_DIR}/.deploy-env
+     Available: $(cd "${ENVIRONMENTS_DIR}" && printf '%s ' *.env | sed 's/\.env//g')"
+fi
+
+# The name becomes part of a path, so it is validated rather than trusted.
+[[ ${DEPLOY_ENV} =~ ^[a-z][a-z0-9-]*$ ]] \
+	|| die "invalid environment name: '${DEPLOY_ENV}'"
+
+ENV_FILE="${ENVIRONMENTS_DIR}/${DEPLOY_ENV}.env"
+[[ -f ${ENV_FILE} ]] || die "no such environment: ${DEPLOY_ENV} (${ENV_FILE} does not exist)"
+
+# shellcheck source=/dev/null
+source "${ENV_FILE}"
+
+# The caller's arguments with --env and its value removed, so the scripts that
+# take positional arguments (backup.sh's label, rollback.sh's release name) do
+# not each have to know about the flag.
+ARGS=()
+_skip=0
+for _arg in "$@"; do
+	if ((_skip)); then _skip=0; continue; fi
+	case "${_arg}" in
+		--env|-e) _skip=1 ;;
+		--env=*) ;;
+		*) ARGS+=("${_arg}") ;;
+	esac
+done
+unset _skip _arg
+
+SUPABASE_DIR="${DEPLOY_ROOT}/supabase"
+APP_DIR="${DEPLOY_ROOT}/app"
+RELEASES_DIR="${APP_DIR}/releases"
+CURRENT_LINK="${APP_DIR}/current"
+SHARED_ENV="${APP_DIR}/shared/.env"
+SECRETS_ENV="${DEPLOY_ROOT}/secrets.env"
+BACKUP_DIR="${DEPLOY_ROOT}/backups"
+STATE_DIR="${DEPLOY_ROOT}/state"
+
+# A 0/1 flag from the environment file.
+is_enabled() { [[ ${!1:-0} == 1 ]]; }
 
 need_cmd() {
 	command -v "$1" >/dev/null 2>&1 || die "required command not found: $1"
@@ -57,19 +116,58 @@ gen_hex() { openssl rand -hex "${1:-32}"; }
 site_origin()      { printf 'https://%s' "${PRIMARY_DOMAIN}"; }
 supabase_origin()  { printf 'https://%s' "${API_HOST}"; }
 
-# Refuse to run the docker commands that would take the database with them.
-# `down -v` and `volume prune` are the two that turn a re-provision into data loss.
+# --------------------------------------------------------------------------
+# Locking
+#
+# Two environments now share one box, one Docker daemon and 8 GB of RAM. Two
+# `npm ci` + `vite build` runs at once is a plausible OOM, and two deploys in
+# the same environment would race for the release symlink.
+#
+# The per-environment lock lives under DEPLOY_ROOT, which the deploy user owns.
+# The build lock is shared ACROSS environments, so it cannot live there — and
+# /srv itself is root-owned. /tmp is right for it: both environments run as the
+# same user, and a lock that vanishes on reboot is exactly what you want.
+# --------------------------------------------------------------------------
+BUILD_LOCK=/tmp/suptur-build.lock
+LOCK_WAIT="${LOCK_WAIT:-1800}"
+
+with_lock() {
+	local lockfile=$1 label=$2; shift 2
+	local fd rc=0
+	exec {fd}>"${lockfile}" || die "cannot open lock file ${lockfile}"
+	if ! flock -w "${LOCK_WAIT}" "${fd}"; then
+		die "timed out after ${LOCK_WAIT}s waiting for the ${label} lock (${lockfile}).
+     Another deploy is probably still running: pgrep -af deploy.sh"
+	fi
+	"$@" || rc=$?
+	exec {fd}>&-
+	return ${rc}
+}
+
+# Refuse the docker commands that would take the database with them.
+# `down -v` and `volume prune` are the two that turn a re-provision into data
+# loss.
+#
+# -p is not optional. Without it Compose names the project after the project
+# DIRECTORY, which is "supabase" for both /srv/suptur/supabase and
+# /srv/suptur-staging/supabase — so staging would adopt and restart
+# production's containers.
 compose() {
-	local arg
+	local arg extra=()
 	for arg in "$@"; do
 		case "${arg}" in
 			-v|--volumes) die "refusing 'docker compose $*': that deletes Supabase volumes" ;;
 		esac
 	done
+	if [[ -f ${SUPABASE_DIR}/docker-compose.${DEPLOY_ENV}.yml ]]; then
+		extra=(-f "${SUPABASE_DIR}/docker-compose.${DEPLOY_ENV}.yml")
+	fi
 	docker compose \
+		-p "${APP_NAME}" \
 		--project-directory "${SUPABASE_DIR}" \
 		-f "${SUPABASE_DIR}/docker-compose.yml" \
 		-f "${SUPABASE_DIR}/docker-compose.override.yml" \
+		"${extra[@]}" \
 		--env-file "${SUPABASE_DIR}/.env" \
 		"$@"
 }
@@ -102,6 +200,16 @@ load_secrets() {
 # written to an ~/.msmtprc so there is exactly one file holding them.
 send_alert() {
 	local subject=$1 body=$2
+
+	# Staging sets ENABLE_ALERTS=0. Its watchdog still runs and still restarts a
+	# dead app — what we are avoiding is being woken at 03:00 for the one
+	# environment whose entire purpose is that it is allowed to be broken.
+	if ! is_enabled ENABLE_ALERTS; then
+		warn "ALERT (${DEPLOY_ENV}, not emailed — ENABLE_ALERTS=0): ${subject}"
+		printf '%s\n' "${body}" >&2
+		return 0
+	fi
+
 	load_secrets
 
 	if [[ -z ${ALERT_EMAIL:-} || -z ${SMTP_HOST:-} || -z ${SMTP_USER:-} ]]; then
@@ -115,8 +223,10 @@ send_alert() {
 		return 0
 	fi
 
-	printf 'From: %s\nTo: %s\nSubject: %s\n\n%s\n' \
-		"${SMTP_ADMIN_EMAIL:-${SMTP_USER}}" "${ALERT_EMAIL}" "${subject}" "${body}" \
+	# The subject carries APP_NAME so a staging alert that somehow does get sent
+	# is never mistaken for a production one.
+	printf 'From: %s\nTo: %s\nSubject: [%s] %s\n\n%s\n' \
+		"${SMTP_ADMIN_EMAIL:-${SMTP_USER}}" "${ALERT_EMAIL}" "${APP_NAME}" "${subject}" "${body}" \
 	| msmtp \
 		--host="${SMTP_HOST}" \
 		--port="${SMTP_PORT:-587}" \

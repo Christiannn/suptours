@@ -28,3 +28,7 @@ test-results
 deploy/supabase/upstream/volumes/db/data/
 deploy/supabase/upstream/volumes/storage/
 deploy/**/.env
+
+# Which environment a clone on the VPS belongs to. Written by provision.sh;
+# belongs to the clone, not the branch.
+.deploy-env

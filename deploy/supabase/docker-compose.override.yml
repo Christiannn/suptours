@@ -24,7 +24,7 @@ services:
     # Upstream publishes 5432 from supavisor; with the pooler off, nothing
     # else would expose it.
     ports:
-      - '127.0.0.1:5432:5432'
+      - '127.0.0.1:${DB_PORT}:5432'
     # Tuned for this box: 8 GB total, shared with ~8 other containers, the
     # Node server and an occasional Vite build. Deliberately below the usual
     # 25%-of-RAM guidance for shared_buffers because of those neighbours.

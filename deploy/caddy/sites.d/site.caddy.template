@@ -1,5 +1,10 @@
-# Rendered by install-system-units.sh from deploy/config.env.
-# Placeholders: __PRIMARY_DOMAIN__ __API_HOST__ __APP_PORT__ __REDIRECT_HOSTS__
+# Rendered by install-system-units.sh from deploy/environments/<env>.env.
+# Placeholders: __PRIMARY_DOMAIN__ __API_HOST__ __APP_PORT__ __API_PORT__
+#               __REDIRECT_HOSTS__ __BASIC_AUTH_USER__ __BASIC_AUTH_HASH__
+#
+# The three fenced blocks below are stripped when the environment does not want
+# them, so one template serves both production (public, indexed, redirects) and
+# staging (password, noindex, no redirects).
 
 __PRIMARY_DOMAIN__ {
 	encode zstd gzip
@@ -9,6 +14,26 @@ __PRIMARY_DOMAIN__ {
 	# traffic grows.
 	@immutable path /_app/immutable/*
 	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	# >>>NOINDEX_BLOCK
+	# Without this, staging.suptur.dk would be crawled and would compete with
+	# suptur.dk for the same content in search results.
+	header X-Robots-Tag "noindex, nofollow, noarchive"
+	# <<<NOINDEX_BLOCK
+
+	# >>>AUTH_BLOCK
+	# Staging sits behind one shared password. Requires Caddy >= 2.8, where the
+	# directive was renamed from `basicauth` to `basic_auth`.
+	#
+	# /healthz is deliberately OUTSIDE the password: deploy.sh curls it over the
+	# public internet at the end of every deploy to prove DNS and the
+	# certificate are working, and the watchdog does the same every two minutes.
+	# A 401 there would read as an outage.
+	@protected not path /healthz
+	basic_auth @protected {
+		__BASIC_AUTH_USER__ __BASIC_AUTH_HASH__
+	}
+	# <<<AUTH_BLOCK
 
 	reverse_proxy 127.0.0.1:__APP_PORT__
 
@@ -33,10 +58,19 @@ __REDIRECT_HOSTS__ {
 __API_HOST__ {
 	encode zstd gzip
 
-	# Supabase Studio is served by the same gateway on :8000, so proxying the
-	# whole host would put the dashboard on the public internet. Only the
-	# routes the browser actually needs are forwarded; everything else — the
-	# Studio UI, the pg-meta API — stays reachable only through an SSH tunnel.
+	# >>>NOINDEX_BLOCK
+	header X-Robots-Tag "noindex, nofollow, noarchive"
+	# <<<NOINDEX_BLOCK
+
+	# Supabase Studio is served by the same gateway, so proxying the whole host
+	# would put the dashboard on the public internet. Only the routes the
+	# browser actually needs are forwarded; everything else — the Studio UI, the
+	# pg-meta API — stays reachable only through an SSH tunnel.
+	#
+	# Note this host is NOT behind basic_auth even on staging: the browser calls
+	# it directly with the anon key, and it has no way to send a password. Its
+	# protection is the same as production's — RLS, plus only four route
+	# prefixes being forwarded at all.
 	@api path /rest/* /auth/* /storage/* /realtime/*
 	handle @api {
 		# Matches storage.file_size_limit = "50MiB" in supabase/config.toml.
@@ -44,7 +78,7 @@ __API_HOST__ {
 		request_body {
 			max_size 50MiB
 		}
-		reverse_proxy 127.0.0.1:8000
+		reverse_proxy 127.0.0.1:__API_PORT__
 	}
 
 	handle {
