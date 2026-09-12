@@ -84,10 +84,13 @@ login works before finishing — if it doesn't, stop and fix that first.
 
 ### 3. Bootstrap the box
 
+The clone location must match `VPS_REPO_DIR` in `deploy/config.env` — that is
+what the PowerShell wrappers cd into.
+
 ```bash
 ssh suptur
-git clone https://github.com/Christiannn/suptours.git ~/suptours
-cd ~/suptours
+git clone https://github.com/Christiannn/suptours.git ~/suptur
+cd ~/suptur
 sudo deploy/bootstrap/01-bootstrap.sh
 exit          # docker group membership only applies to a new login
 ```
@@ -123,7 +126,7 @@ generate the file, fill it in, then run it again:
 
 ```bash
 ssh suptur
-cd ~/suptours
+cd ~/suptur
 deploy/scripts/provision.sh        # writes the blank secrets.env
 nano /srv/suptur/secrets.env
 deploy/scripts/provision.sh        # picks up what you filled in
@@ -174,7 +177,11 @@ cd local
 
 1. Backs up the database and storage.
 2. Fetches the ref and builds it in a **new** release directory.
-3. Applies migrations — forward-only, seeds never.
+3. Applies migrations — forward-only, seeds never. This one connection runs
+   with `PGSSLMODE=disable`: the Supabase Postgres image does not serve TLS,
+   and the CLI ignores an `sslmode` inside `--db-url`. It is loopback to a port
+   bound on `127.0.0.1` only, and every Supabase service already talks to
+   Postgres in plaintext across the Docker bridge by upstream's own design.
 4. Swaps the `current` symlink atomically and restarts.
 5. Health-checks `/healthz`; **on failure, relinks the previous release and
    restarts it.**

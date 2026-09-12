@@ -40,6 +40,9 @@ if [[ ! -f ${SECRETS_ENV} ]]; then
 	cat > "${SECRETS_ENV}" <<'EOF'
 # Operator-supplied secrets. Never committed to git.
 #
+# This file is sourced as shell (`set -a; source ...`), not parsed as dotenv —
+# quote any value containing a space or special character, e.g. SMTP_SENDER_NAME="SUP Tours".
+#
 # SMTP is used for two things: Supabase password-reset mail, and the watchdog's
 # downtime alerts. Until it is filled in, "forgot password" fails silently and
 # alerts are logged but not sent.
@@ -48,7 +51,7 @@ SMTP_PORT=587
 SMTP_USER=
 SMTP_PASS=
 SMTP_ADMIN_EMAIL=
-SMTP_SENDER_NAME=SUP Tours
+SMTP_SENDER_NAME="SUP Tours"
 
 # Where downtime warnings go.
 ALERT_EMAIL=
@@ -206,6 +209,9 @@ log "Rendering ${SHARED_ENV}"
 	echo "ADDRESS_HEADER=x-forwarded-for"
 	echo "XFF_DEPTH=1"
 	echo "BODY_SIZE_LIMIT=52428800"
+	# Server-side calls reach the gateway directly rather than looping out
+	# through DNS, TLS and Caddy to hit a container on this same host.
+	echo "SUPABASE_INTERNAL_URL=http://127.0.0.1:8000"
 	echo "ENABLE_OAUTH=${ENABLE_OAUTH:-}"
 	echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}"
 	echo "GEMINI_API_KEY=${GEMINI_API_KEY:-}"
@@ -220,7 +226,11 @@ log "Starting the Supabase stack (this pulls images on first run)"
 compose up -d --remove-orphans
 
 log "Waiting for the API gateway"
+# Every /auth/v1/* path is a protected route at the gateway — there is no
+# unauthenticated health endpoint — so this needs a valid apikey or Envoy
+# rejects it with 401 before GoTrue ever sees the request.
 wait_for_http "http://127.0.0.1:8000/auth/v1/health" 60 3 \
+	-H "apikey: ${SECRETS[ANON_KEY]}" \
 	|| die "Supabase gateway did not become healthy — check: docker compose logs"
 ok "Supabase is up"
 
