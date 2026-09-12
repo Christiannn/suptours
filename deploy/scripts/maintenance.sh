@@ -91,7 +91,8 @@ if ((used_pct >= DISK_WARN_PERCENT)); then
 
 $(du -sh "${BACKUP_DIR}" "${RELEASES_DIR}" "${SUPABASE_DIR}/volumes" 2>/dev/null)
 
-Consider lowering BACKUP_RETENTION_DAYS or RELEASES_TO_KEEP in deploy/config.env."
+Consider lowering BACKUP_RETENTION_DAYS or RELEASES_TO_KEEP in
+deploy/environments/${DEPLOY_ENV}.env."
 fi
 
 ok "Maintenance complete"
