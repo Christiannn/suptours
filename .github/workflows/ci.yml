@@ -1,0 +1,87 @@
+# Runs on every pull request and on every push to the three long-lived
+# branches. These are the checks the staging and main rulesets require.
+#
+# Because promotion is a fast-forward push, the commit that lands on staging is
+# byte-identical to the one tested here on develop — so these results carry
+# over and the promotion is never blocked waiting for a re-run.
+#
+# Two deliberate choices about running this on a PUBLIC repository:
+#
+#   1. `pull_request`, never `pull_request_target`. The latter runs with the
+#      repository's secrets and a write-capable token in the context of the
+#      BASE branch while checking out the CONTRIBUTOR's code — which is a
+#      straightforward way to hand a stranger your secrets.
+#
+#   2. No secrets are used at all. The PUBLIC_SUPABASE_* values below are
+#      deliberate nonsense: svelte-check only needs them to exist so it can
+#      generate the $env/static/public types, and the build only inlines them
+#      into a bundle nobody deploys. That is what makes fork PRs safe to run.
+#
+# Gates on `check`, not `lint`: there are ~37 pre-existing eslint errors and an
+# unformatted tree, both predating this workflow. See deploy/README.md.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, staging, main]
+  push:
+    branches: [develop, staging, main]
+
+# The token gets no more than it needs. Individual jobs may widen this; none do.
+permissions:
+  contents: read
+
+concurrency:
+  # Supersede an in-flight run when a PR is pushed to again, but never cancel a
+  # branch build — those results are what the rulesets read.
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  # Not secret, not real, and never deployed. See the header.
+  PUBLIC_SUPABASE_URL: https://api.example.invalid
+  PUBLIC_SUPABASE_ANON_KEY: placeholder
+
+jobs:
+  check:
+    name: Types and build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: svelte-check
+        run: npm run check
+
+      # Catches what svelte-check cannot: a broken import, a server-only module
+      # pulled into a client bundle, an adapter misconfiguration.
+      - name: Build
+        run: npm run build
+
+  test:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # The `client` vitest project runs in a real browser, so one has to exist.
+      # Only chromium, which is the only instance vite.config.ts declares.
+      - name: Install Chromium
+        run: npx playwright install chromium --with-deps
+
+      - run: npm run test:unit -- --run
+# Any THIRD-PARTY action added here must be pinned to a full commit SHA rather
+# than a tag — a tag can be moved to point at different code. The actions/*
+# above are GitHub's own and are pinned to major versions by convention.

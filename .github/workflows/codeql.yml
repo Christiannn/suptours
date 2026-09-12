@@ -1,0 +1,50 @@
+# Static security analysis. Free on public repositories.
+#
+# This is the check that reads the code the way an attacker would rather than
+# the way the type system does: injection into a query, a path built from user
+# input, a secret reaching a log. It complements `npm run check` rather than
+# repeating it.
+#
+# The weekly run matters as much as the per-PR one — CodeQL's rules improve
+# over time, so code that was clean when it merged can be flagged later without
+# anyone touching it.
+
+name: CodeQL
+
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop, main]
+  schedule:
+    # Mondays, 06:00 UTC. Offset from the hour because everyone picks :00.
+    - cron: '17 6 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      # Only this job may write findings back to the Security tab.
+      security-events: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # security-and-quality adds maintainability rules that are noisy on a
+          # codebase with existing lint debt; keep it to the security set.
+          queries: security-extended
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:javascript-typescript
