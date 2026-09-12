@@ -32,3 +32,9 @@ deploy/**/.env
 # Which environment a clone on the VPS belongs to. Written by provision.sh;
 # belongs to the clone, not the branch.
 .deploy-env
+
+# Off-box database and storage backups pulled down by Invoke-Backup.ps1.
+# These contain real customer data; this repo is public. Never commit them.
+/backups/
+*.sql.gz
+*-storage.tar.gz
