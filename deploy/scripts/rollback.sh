@@ -19,8 +19,8 @@ mapfile -t releases < <(find "${RELEASES_DIR}" -mindepth 1 -maxdepth 1 -type d -
 
 current="$(basename "$(readlink -f "${CURRENT_LINK}")")"
 
-if [[ -n ${1:-} ]]; then
-	target=$1
+if [[ -n ${ARGS[0]:-} ]]; then
+	target="${ARGS[0]}"
 	[[ -d ${RELEASES_DIR}/${target} ]] || die "no such release: ${target}"
 else
 	target=""
