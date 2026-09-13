@@ -222,6 +222,33 @@ curl -sSI https://suptur.dk/healthz | head -1
 
 ---
 
+## Upgrading a box from the single-environment layout
+
+Only relevant once, on a machine provisioned before staging existed.
+
+The Supabase stack used to run under the Compose project name `supabase`,
+derived from its directory. It now runs under `APP_NAME`, so two environments
+can never adopt each other's containers. Compose scopes **named volumes** to the
+project too, and `db-config` is a named volume holding pgsodium's root key — so
+the rename has to carry it across rather than let Compose mint a fresh one.
+
+`provision.sh` detects this and stops with the exact commands. In short:
+
+```bash
+cd /srv/suptur/supabase
+docker compose -p supabase -f docker-compose.yml \
+  -f docker-compose.override.yml --env-file .env down
+docker volume create suptur_db-config
+docker run --rm -v supabase_db-config:/from -v suptur_db-config:/to \
+  alpine sh -c 'cp -a /from/. /to/'
+```
+
+The database itself is a **bind mount** at `/srv/suptur/supabase/volumes/db/data`
+and is never touched by any of this. Keep `supabase_db-config` until the stack
+is healthy again.
+
+---
+
 ## Day to day
 
 `-Env` is mandatory on everything that can change something.

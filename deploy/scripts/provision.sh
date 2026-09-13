@@ -44,6 +44,51 @@ done
 ok "No collisions with: $(cd "${ENVIRONMENTS_DIR}" && printf '%s ' *.env | sed "s/\.env//g; s/${DEPLOY_ENV} //")"
 
 # --------------------------------------------------------------------------
+# 0b. Containers left behind by a different Compose project name
+#
+# Compose scopes container names AND named volumes to the project. This stack
+# used to run under the directory-derived name "supabase"; it now runs under
+# APP_NAME so two environments cannot adopt each other's containers.
+#
+# Starting the new project while the old one still holds the ports fails with a
+# bare "port is already allocated", which says nothing about either the cause or
+# the fix — and the fix matters, because db-config is a named volume holding
+# pgsodium's root key. Left to itself, the rename would silently mint a new key
+# and orphan whatever the old one encrypted.
+#
+# Matched on the project's working directory, so the OTHER environment's stack
+# (a legitimately different project in a different directory) is not flagged.
+# --------------------------------------------------------------------------
+legacy_projects="$(docker ps -a \
+	--format '{{.Names}}|{{.Label "com.docker.compose.project"}}|{{.Label "com.docker.compose.project.working_dir"}}' \
+	2>/dev/null \
+	| awk -F'|' -v dir="${SUPABASE_DIR}" -v proj="${APP_NAME}" \
+		'$3 == dir && $2 != "" && $2 != proj { print $2 }' \
+	| sort -u || true)"
+
+if [[ -n ${legacy_projects} ]]; then
+	old="$(printf '%s' "${legacy_projects}" | head -n1)"
+	die "containers for ${SUPABASE_DIR} are still running under the Compose
+     project '${old}', but this environment now uses '${APP_NAME}'.
+
+     Starting both would collide on ports ${API_PORT} and ${DB_PORT}, and the
+     named volume ${old}_db-config holds pgsodium's root key — so the rename
+     has to carry it across rather than let Compose mint a fresh one.
+
+     One-time migration (the database itself is a bind mount under
+     ${SUPABASE_DIR}/volumes and is not touched):
+
+       cd ${SUPABASE_DIR}
+       docker compose -p ${old} -f docker-compose.yml \\
+         -f docker-compose.override.yml --env-file .env down
+       docker volume create ${APP_NAME}_db-config
+       docker run --rm -v ${old}_db-config:/from -v ${APP_NAME}_db-config:/to \\
+         alpine sh -c 'cp -a /from/. /to/'
+
+     Then re-run this script. Keep ${old}_db-config until the stack is healthy."
+fi
+
+# --------------------------------------------------------------------------
 # 1. Directories
 # --------------------------------------------------------------------------
 # /srv is root-owned, so the environment's own root is the one thing the deploy
