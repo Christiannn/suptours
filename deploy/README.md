@@ -64,8 +64,8 @@ separate release directories.
 And two clones of this repository, each marked with its own `.deploy-env`:
 
 ```
-~/suptours           checked out on main      → production
-~/suptours-staging   checked out on staging   → staging
+~/suptur           checked out on main      → production
+~/suptur-staging   checked out on staging   → staging
 ```
 
 That separation is deliberate. The deploy *scripts* run from the clone's
@@ -115,12 +115,13 @@ login works before finishing — if it doesn't, stop and fix that first.
 
 ### 3. Bootstrap the box
 
-The clone location must match `VPS_REPO_DIR` in `deploy/config.env` — that is
-what the PowerShell wrappers cd into.
+The clone location must match `REMOTE_CLONE` in
+`deploy/environments/production.env` — that is what the PowerShell wrappers cd
+into, and `Deploy-Suptur.ps1` checks it before doing anything.
 
 ```bash
 ssh suptur
-git clone https://github.com/Christiannn/suptours.git ~/suptur
+git clone https://github.com/Christiannn/suptur.git ~/suptur
 cd ~/suptur
 sudo deploy/bootstrap/01-bootstrap.sh
 exit          # docker group membership only applies to a new login
@@ -196,8 +197,8 @@ different Compose project, different units.
 
 ```bash
 ssh suptur
-git clone https://github.com/Christiannn/suptours.git ~/suptours-staging
-cd ~/suptours-staging
+git clone https://github.com/Christiannn/suptur.git ~/suptur-staging
+cd ~/suptur-staging
 git checkout staging
 deploy/scripts/provision.sh --env staging
 ```
@@ -233,11 +234,11 @@ curl -sSI https://suptur.dk/healthz | head -1
 | Deploy a branch to staging | `.\Deploy-Suptur.ps1 -Env staging -Ref feature/x` |
 | Deploy production | `.\Deploy-Suptur.ps1 -Env production` (makes you type the domain) |
 | See what would deploy | `.\Deploy-Suptur.ps1 -Env staging -DryRun` |
-| Roll back | `ssh suptur 'cd ~/suptours && deploy/scripts/rollback.sh --env production'` |
+| Roll back | `ssh suptur 'cd ~/suptur && deploy/scripts/rollback.sh --env production'` |
 | Supabase Studio | `.\Open-Studio.ps1 -Env staging` |
 | Back up now | `.\Invoke-Backup.ps1 -Env production -Download` |
 | Prove a backup restores | `.\Invoke-Backup.ps1 -Env production -Verify` |
-| Wipe and reseed staging's DB | `ssh suptur 'cd ~/suptours-staging && deploy/scripts/reset-staging-db.sh --env staging'` |
+| Wipe and reseed staging's DB | `ssh suptur 'cd ~/suptur-staging && deploy/scripts/reset-staging-db.sh --env staging'` |
 | App logs | `ssh suptur 'journalctl -u suptur -f'` (or `suptur-staging`) |
 | Supabase logs | `ssh suptur 'cd /srv/suptur/supabase && docker compose -p suptur logs -f auth'` |
 | Container status | `ssh suptur 'docker ps --format "table {{.Names}}\t{{.Status}}"'` |

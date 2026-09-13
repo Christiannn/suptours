@@ -79,7 +79,7 @@ Two more things:
 If staging's schema gets into a mess, throw it away rather than repairing it:
 
 ```bash
-ssh suptur 'cd ~/suptours-staging && deploy/scripts/reset-staging-db.sh --env staging'
+ssh suptur 'cd ~/suptur-staging && deploy/scripts/reset-staging-db.sh --env staging'
 ```
 
 Staging holds no real data — migrations plus `supabase/seed-data.sql` — which
