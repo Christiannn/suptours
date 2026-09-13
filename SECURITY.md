@@ -9,7 +9,7 @@ vulnerability report that arrives as a public issue is a disclosure before it
 is a report.
 
 Use GitHub's [private vulnerability
-reporting](https://github.com/Christiannn/suptours/security/advisories/new)
+reporting](https://github.com/Christiannn/suptur/security/advisories/new)
 instead. It is enabled on this repository and goes straight to the maintainer.
 
 If that is not available to you, email **christian.munch@gmail.com** with

@@ -117,7 +117,7 @@ login works before finishing — if it doesn't, stop and fix that first.
 
 ```bash
 ssh suptur
-git clone https://github.com/Christiannn/suptours.git ~/suptours
+git clone https://github.com/Christiannn/suptur.git ~/suptours
 cd ~/suptours
 sudo deploy/bootstrap/01-bootstrap.sh
 exit          # docker group membership only applies to a new login
@@ -193,7 +193,7 @@ different Compose project, different units.
 
 ```bash
 ssh suptur
-git clone https://github.com/Christiannn/suptours.git ~/suptours-staging
+git clone https://github.com/Christiannn/suptur.git ~/suptours-staging
 cd ~/suptours-staging
 git checkout staging
 deploy/scripts/provision.sh --env staging
