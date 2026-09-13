@@ -1,6 +1,6 @@
 [Unit]
 Description=__APP_NAME__ SvelteKit server
-Documentation=https://github.com/Christiannn/suptours
+Documentation=https://github.com/Christiannn/suptur
 After=network-online.target docker.service
 Wants=network-online.target
 

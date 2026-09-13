@@ -3,20 +3,27 @@
 
 $ErrorActionPreference = 'Stop'
 
-# Read deploy/config.env so the domain, port and paths are defined in exactly
-# one place rather than duplicated between bash and PowerShell.
+# Read deploy/environments/<name>.env so the domain, ports and paths are defined
+# in exactly one place rather than duplicated between bash and PowerShell.
+#
+# There is no default environment on purpose. Every script that can change
+# something takes -Env and passes it here, so "which box am I about to touch"
+# is always answered explicitly rather than assumed.
 function Get-DeployConfig {
-    $path = Join-Path $PSScriptRoot '..\deploy\config.env' | Resolve-Path
+    param([Parameter(Mandatory)][ValidateSet('production', 'staging')][string]$Env)
+
+    $path = Join-Path $PSScriptRoot "..\deploy\environments\$Env.env" | Resolve-Path
     $config = @{}
     foreach ($line in Get-Content $path) {
         if ($line -match '^\s*#' -or $line -notmatch '=') { continue }
         $key, $value = $line -split '=', 2
         $config[$key.Trim()] = $value.Trim().Trim('"')
     }
+    $config['ENV'] = $Env
     return $config
 }
 
-# The SSH alias written by Setup-SshKey.ps1.
+# The SSH alias written by Setup-SshKey.ps1. One box, both environments.
 $script:SshHost = 'suptur'
 
 function Test-SshReady {
@@ -41,4 +48,27 @@ function Invoke-Remote {
     )
     & ssh -t $SshHost $Command
     return $LASTEXITCODE
+}
+
+# Make the operator type the domain before anything touches production.
+#
+# Staging is meant to be cheap to redeploy, so it is never gated. Production is
+# gated every time: the whole value of the prompt is that it is not routine.
+function Confirm-Environment {
+    param(
+        [Parameter(Mandatory)][hashtable]$Config,
+        [Parameter(Mandatory)][string]$Action,
+        [switch]$Yes
+    )
+
+    if ($Config['ENV'] -ne 'production' -or $Yes) { return }
+
+    $domain = $Config['PRIMARY_DOMAIN']
+    Write-Host ""
+    Write-Host "  About to $Action PRODUCTION — https://$domain" -ForegroundColor Yellow
+    Write-Host ""
+    $typed = Read-Host "  Type '$domain' to continue"
+    if ($typed -ne $domain) {
+        throw "Aborted: expected '$domain', got '$typed'."
+    }
 }

@@ -12,7 +12,7 @@
 
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 
-LABEL="${1:-manual}"
+LABEL="${ARGS[0]:-manual}"
 STAMP="$(date -u +%Y%m%d-%H%M%S)"
 PREFIX="${BACKUP_DIR}/${STAMP}-${LABEL}"
 

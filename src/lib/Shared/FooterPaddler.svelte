@@ -1,3 +1,208 @@
+<script lang="ts">
+	import { onMount } from 'svelte';
+
+	// Client-side animation frame loop control
+	let isClient = $state(false);
+
+	// Simple state variables updated sequentially in the animation loop
+	let boardX = $state(-100);
+	let boardYOffset = $state(0);
+	let boardAngle = $state(0);
+
+	let blade = $state({ x: 24, y: 80 });
+	let g1 = $state({ x: -1, y: 17 });
+	let g2 = $state({ x: 10.5, y: 46 });
+	let shaftAngle = $state(-21.6);
+
+	let hipX = $state(-3.7);
+	let hipY = $state(54);
+	let shoulder = $state({ x: -10.9, y: 31.1 });
+	let head = $state({ x: -13.1, y: 23.9 });
+
+	let topElbow = $state({ jointX: -12.9, jointY: 17.3 });
+	let bottomElbow = $state({ jointX: -2.1, jointY: 39.9 });
+
+	// Fixed foot placements on board (in board-local space)
+	const backFoot = { x: -14, y: 78 };
+	const frontFoot = { x: 8, y: 78 };
+
+	let backKnee = $state({ jointX: -8.4, jointY: 65 });
+	let frontKnee = $state({ jointX: 1.6, jointY: 64.7 });
+
+	interface Ripple {
+		x: number;
+		y: number;
+		rx: number;
+		ry: number;
+		opacity: number;
+	}
+	let ripples = $state<Ripple[]>([]);
+	let splash = $state({ opacity: 0, rx: 0, ry: 0, x: 0, y: 0 });
+
+	// 2D Inverse Kinematics solver using law of cosines
+	function solveIK(
+		startX: number,
+		startY: number,
+		endX: number,
+		endY: number,
+		len1: number,
+		len2: number,
+		flip: number
+	) {
+		const dx = endX - startX;
+		const dy = endY - startY;
+		const dist = Math.sqrt(dx * dx + dy * dy);
+
+		// If target is out of reach or overlap, fully extend towards it
+		if (dist >= len1 + len2 || dist === 0) {
+			const angle = dist === 0 ? 0 : Math.atan2(dy, dx);
+			return {
+				jointX: startX + Math.cos(angle) * len1,
+				jointY: startY + Math.sin(angle) * len1
+			};
+		}
+
+		const a = len1;
+		const b = len2;
+		const c = dist;
+
+		// Law of cosines: cos(A) = (a^2 + c^2 - b^2) / (2 * a * c)
+		let cosA = (a * a + c * c - b * b) / (2 * a * c);
+		cosA = Math.max(-1, Math.min(1, cosA)); // clamp
+		const A = Math.acos(cosA);
+
+		const baseAngle = Math.atan2(dy, dx);
+		const elbowAngle = baseAngle + flip * A;
+
+		return {
+			jointX: startX + Math.cos(elbowAngle) * len1,
+			jointY: startY + Math.sin(elbowAngle) * len1
+		};
+	}
+
+	onMount(() => {
+		isClient = true;
+		let frame: number;
+		const start = performance.now();
+
+		const PADDLE_CYCLE = 2.8; // seconds per stroke
+		const MOVE_CYCLE = 22.0;   // seconds to cross the screen
+
+		function update() {
+			const time = (performance.now() - start) / 1000;
+
+			// 1. Board movement & wave oscillation
+			const moveProgress = (time % MOVE_CYCLE) / MOVE_CYCLE;
+			boardX = -100 + moveProgress * 1400;
+			boardYOffset = Math.sin(time * 3.5) * 1.8;
+			boardAngle = Math.sin(time * 3.5 - 0.7) * 2.2;
+
+			// 2. Stroke phase (0 to 2*PI)
+			const strokePhase = ((time % PADDLE_CYCLE) / PADDLE_CYCLE) * 2 * Math.PI;
+			const isPower = strokePhase < Math.PI;
+
+			// 3. Paddle blade path (elliptical stroke trajectory)
+			let bx = 0, by = 0;
+			if (isPower) {
+				const p = strokePhase / Math.PI;
+				bx = 24 - 38 * p;
+				by = 80 + 7 * Math.sin(p * Math.PI); // deep stroke in water
+			} else {
+				const p = (strokePhase - Math.PI) / Math.PI;
+				bx = -14 + 38 * p;
+				by = 74 - 18 * Math.sin(p * Math.PI); // high swing in air
+			}
+			blade = { x: bx, y: by };
+
+			// 4. Top grip G1
+			let g1x = 0, g1y = 0;
+			if (isPower) {
+				const p = strokePhase / Math.PI;
+				g1x = -1 + 8 * Math.sin(p * Math.PI / 2);
+				g1y = 17 + 5 * p;
+			} else {
+				const p = (strokePhase - Math.PI) / Math.PI;
+				g1x = 7 - 8 * p;
+				g1y = 22 - 5 * p;
+			}
+			g1 = { x: g1x, y: g1y };
+
+			// 5. Bottom grip G2
+			g2 = {
+				x: g1x + (bx - g1x) * 0.46,
+				y: g1y + (by - g1y) * 0.46
+			};
+
+			// Shaft angle (for rotating the blade ellipse)
+			shaftAngle = Math.atan2(by - g1y, bx - g1x) * 180 / Math.PI - 90;
+
+			// 6. Hips, Torso, Shoulders, Head
+			const hX = -3 + Math.sin(strokePhase - 0.5) * 1.5;
+			const hY = 53 + Math.cos(strokePhase) * 1.0;
+			hipX = hX;
+			hipY = hY;
+
+			const lean = -11 + Math.sin(strokePhase - 0.8) * 9;
+			const rad = (lean * Math.PI) / 180;
+			
+			const shX = hX + Math.sin(rad) * 24;
+			const shY = hY - Math.cos(rad) * 24;
+			shoulder = { x: shX, y: shY };
+
+			head = {
+				x: shX + Math.sin(rad) * 7.5,
+				y: shY - Math.cos(rad) * 7.5
+			};
+
+			// 7. Leg and Arm IK
+			topElbow = solveIK(shX, shY - 2, g1x, g1y, 12, 12, -1);
+			bottomElbow = solveIK(shX, shY - 2, g2.x, g2.y, 14, 14, 1);
+
+			backKnee = solveIK(hX, hY, backFoot.x, backFoot.y, 12, 12, 1);
+			frontKnee = solveIK(hX, hY, frontFoot.x, frontFoot.y, 12, 12, 1);
+
+			// 8. Wake ripples behind the board
+			const tempRipples = [];
+			for (let i = 0; i < 3; i++) {
+				const phaseOffset = (time + i * 0.8) % 2.4;
+				const scale = phaseOffset / 2.4;
+				const distance = 40 + scale * 50;
+				const rx = 10 + scale * 25;
+				const ry = 2 + scale * 4;
+				const opacity = 0.5 * (1 - scale);
+				tempRipples.push({
+					x: boardX - distance,
+					y: 78 + boardYOffset + 4,
+					rx,
+					ry,
+					opacity
+				});
+			}
+			ripples = tempRipples;
+
+			// 9. Splash at water entry (catch)
+			const splashActive = strokePhase > 0 && strokePhase < 0.6;
+			if (splashActive) {
+				const scale = strokePhase / 0.6;
+				splash = {
+					x: boardX + 24,
+					y: 80 + boardYOffset,
+					rx: scale * 12,
+					ry: scale * 4,
+					opacity: 0.6 * (1 - scale)
+				};
+			} else {
+				splash = { opacity: 0, rx: 0, ry: 0, x: 0, y: 0 };
+			}
+
+			frame = requestAnimationFrame(update);
+		}
+
+		frame = requestAnimationFrame(update);
+		return () => cancelAnimationFrame(frame);
+	});
+</script>
+
 <div class="footer-paddler" aria-hidden="true">
 	<svg
 		class="footer-paddler__scene"
@@ -7,55 +212,119 @@
 	>
 		<!-- Wave layer deep (back) -->
 		<path class="wave wave--deep" d="M0 60 C100 45,200 75,300 60 S500 45,600 60 S800 75,900 60 S1100 45,1200 60 L1200 110 L0 110 Z"/>
+		
+		<!-- Trailing Wake Ripples -->
+		{#if isClient}
+			{#each ripples as r, i (i)}
+				<ellipse
+					cx={r.x}
+					cy={r.y}
+					rx={r.rx}
+					ry={r.ry}
+					class="paddler__wake"
+					style="opacity: {r.opacity}"
+				/>
+			{/each}
+		{/if}
+
 		<!-- Wave layer mid -->
 		<path class="wave wave--mid" d="M0 72 C120 58,240 86,360 72 S600 58,720 72 S960 86,1080 72 S1200 58,1200 72 L1200 110 L0 110 Z"/>
+
+		{#if !isClient}
+			<!-- Static SSR Fallback positioned in center -->
+			<g class="paddler-group fallback" transform="translate(560, 0)">
+				<!-- Board -->
+				<rect class="paddler__board" x="-44" y="78" width="88" height="6" rx="3"/>
+				<path class="paddler__board" d="M20 84 L25 94 L13 94 Z"/>
+				
+				<!-- Legs -->
+				<line class="paddler__legs" x1="-14" y1="78" x2="-8" y2="65" stroke-width="4.5" stroke-linecap="round"/>
+				<line class="paddler__legs" x1="-8" y1="65" x2="-3" y2="53" stroke-width="4.5" stroke-linecap="round"/>
+				<line class="paddler__legs" x1="8" y1="78" x2="3" y2="65" stroke-width="4.5" stroke-linecap="round"/>
+				<line class="paddler__legs" x1="3" y1="65" x2="-3" y2="53" stroke-width="4.5" stroke-linecap="round"/>
+
+				<!-- Body (Hips to Shoulder) -->
+				<line class="paddler__torso-line" x1="-3" y1="53" x2="-8" y2="28" stroke-width="8.5" stroke-linecap="round"/>
+				<!-- Head -->
+				<circle class="paddler__head" cx="-10" cy="18" r="7.5"/>
+
+				<!-- Arms -->
+				<!-- Top Arm (Shoulder to G1) -->
+				<line class="paddler__arm" x1="-8" y1="28" x2="-14" y2="22" stroke-width="4.5" stroke-linecap="round"/>
+				<line class="paddler__arm" x1="-14" y1="22" x2="-10" y2="18" stroke-width="4" stroke-linecap="round"/>
+				<!-- Bottom Arm (Shoulder to G2) -->
+				<line class="paddler__arm" x1="-8" y1="28" x2="3" y2="40" stroke-width="4.5" stroke-linecap="round"/>
+				<line class="paddler__arm" x1="3" y1="40" x2="5" y2="48" stroke-width="4" stroke-linecap="round"/>
+
+				<!-- Paddle -->
+				<line class="paddler__shaft" x1="-10" y1="18" x2="22" y2="80" stroke-width="3" stroke-linecap="round"/>
+				<ellipse class="paddler__blade" cx="24" cy="84" rx="6" ry="10" transform="rotate(30, 24, 84)"/>
+			</g>
+		{:else}
+			<!-- Dynamic Client-Side Animated Paddler -->
+			<g class="paddler-group" transform="translate({boardX}, {boardYOffset}) rotate({boardAngle}, 0, 78)">
+				<!-- Board -->
+				<rect class="paddler__board" x="-44" y="78" width="88" height="6" rx="3"/>
+				<!-- Fin -->
+				<path class="paddler__board" d="M20 84 L25 94 L13 94 Z"/>
+
+				<!-- Legs (IK Bending) -->
+				<!-- Back Leg -->
+				<line class="paddler__legs" x1={backFoot.x} y1={backFoot.y} x2={backKnee.jointX} y2={backKnee.jointY} stroke-width="5.2" stroke-linecap="round"/>
+				<line class="paddler__legs" x1={backKnee.jointX} y1={backKnee.jointY} x2={hipX} y2={hipY} stroke-width="5.2" stroke-linecap="round"/>
+
+				<!-- Front Leg -->
+				<line class="paddler__legs" x1={frontFoot.x} y1={frontFoot.y} x2={frontKnee.jointX} y2={frontKnee.jointY} stroke-width="5.2" stroke-linecap="round"/>
+				<line class="paddler__legs" x1={frontKnee.jointX} y1={frontKnee.jointY} x2={hipX} y2={hipY} stroke-width="5.2" stroke-linecap="round"/>
+
+				<!-- Torso (smooth robust line) -->
+				<line class="paddler__torso-line" x1={hipX} y1={hipY} x2={shoulder.x} y2={shoulder.y} stroke-width="9" stroke-linecap="round"/>
+
+				<!-- Head -->
+				<circle class="paddler__head" cx={head.x} cy={head.y} r="8"/>
+
+				<!-- Arms (IK Bending) -->
+				<!-- Top Arm -->
+				<line class="paddler__arm" x1={shoulder.x} y1={shoulder.y - 2} x2={topElbow.jointX} y2={topElbow.jointY} stroke-width="4.5" stroke-linecap="round"/>
+				<line class="paddler__arm" x1={topElbow.jointX} y1={topElbow.jointY} x2={g1.x} y2={g1.y} stroke-width="4" stroke-linecap="round"/>
+
+				<!-- Bottom Arm -->
+				<line class="paddler__arm" x1={shoulder.x} y1={shoulder.y - 2} x2={bottomElbow.jointX} y2={bottomElbow.jointY} stroke-width="4.5" stroke-linecap="round"/>
+				<line class="paddler__arm" x1={bottomElbow.jointX} y1={bottomElbow.jointY} x2={g2.x} y2={g2.y} stroke-width="4" stroke-linecap="round"/>
+
+				<!-- Paddle (always perfectly connected) -->
+				<!-- Shaft -->
+				<line class="paddler__shaft" x1={g1.x} y1={g1.y} x2={blade.x} y2={blade.y} stroke-width="3.2" stroke-linecap="round"/>
+				<!-- T-Handle -->
+				<line class="paddler__shaft" x1={g1.x - 4} y1={g1.y} x2={g1.x + 4} y2={g1.y} stroke-width="3.2" stroke-linecap="round" transform="rotate({shaftAngle}, {g1.x}, {g1.y})"/>
+				<!-- Blade -->
+				<ellipse
+					class="paddler__blade"
+					cx={blade.x}
+					cy={blade.y + 3}
+					rx="6.5"
+					ry="10.5"
+					transform="rotate({shaftAngle}, {blade.x}, {blade.y + 3})"
+				/>
+			</g>
+		{/if}
+
 		<!-- Wave layer front -->
 		<path class="wave wave--front" d="M0 82 C140 70,280 94,420 82 S700 70,840 82 S1120 94,1200 82 L1200 110 L0 110 Z"/>
 
-		<!--
-		  Paddler anatomy (Y coords within paddler-group):
-		  Board top: y=78  Hip pivot: y=70
-		  Torso: y=44→70  Shoulders: y=48  Head: cy=36 r=9
-		  Nested groups use translate() so their pivot sits at local (0,0).
-		-->
-		<g class="paddler-group">
-			<!-- Board -->
-			<rect class="paddler__board" x="-44" y="78" width="88" height="6" rx="3"/>
-			<!-- Fin -->
-			<path class="paddler__board" d="M20 84 L25 94 L13 94 Z"/>
-			<!-- Legs (splayed wide for stability) -->
-			<line class="paddler__legs" x1="-5" y1="78" x2="-18" y2="85" stroke-width="5" stroke-linecap="round"/>
-			<line class="paddler__legs" x1="5" y1="78" x2="16" y2="85" stroke-width="5" stroke-linecap="round"/>
-
-			<!--
-			  Body group — pivot at hip (0,70).
-			  translate(0,70) puts hip at local (0,0) → CSS rotate acts on hip.
-			-->
-			<g class="paddler__body-group" transform="translate(0,70)">
-				<!-- Torso: −26 to 0 in local Y -->
-				<rect class="paddler__torso" x="-7" y="-26" width="14" height="26" rx="5"/>
-				<!-- Head: −35 in local Y -->
-				<circle class="paddler__head" cx="0" cy="-35" r="9"/>
-
-				<!--
-				  Paddle group — pivot at upper grip (0,−22) in body-group local space.
-				  translate(0,−22) puts the grip at local (0,0).
-				  Shaft runs from (0,−14) [T-handle] to (0,48) [blade end].
-				-->
-				<g class="paddler__paddle-group" transform="translate(0,-22)">
-					<!-- Upper arm: shoulder → upper grip -->
-					<line class="paddler__arm" x1="3" y1="-4" x2="0" y2="0" stroke-width="4" stroke-linecap="round"/>
-					<!-- Lower arm: torso → mid-shaft grip -->
-					<line class="paddler__arm" x1="5" y1="8" x2="0" y2="18" stroke-width="4" stroke-linecap="round"/>
-					<!-- Paddle shaft -->
-					<line class="paddler__shaft" x1="0" y1="-14" x2="0" y2="48" stroke-width="3" stroke-linecap="round"/>
-					<!-- T-handle at top -->
-					<line class="paddler__shaft" x1="-5" y1="-14" x2="5" y2="-14" stroke-width="3" stroke-linecap="round"/>
-					<!-- Blade -->
-					<ellipse class="paddler__blade" cx="0" cy="52" rx="7" ry="11"/>
-				</g>
-			</g>
-		</g>
+		<!-- Catch Splash Effect -->
+		{#if isClient && splash.opacity > 0}
+			<ellipse
+				cx={splash.x}
+				cy={splash.y}
+				rx={splash.rx}
+				ry={splash.ry}
+				class="paddler__splash"
+				style="opacity: {splash.opacity}"
+			/>
+			<circle cx={splash.x - splash.rx} cy={splash.y - splash.ry * 0.8} r="1.5" class="paddler__splash-drop" style="opacity: {splash.opacity}"/>
+			<circle cx={splash.x + splash.rx} cy={splash.y - splash.ry * 0.8} r="1.5" class="paddler__splash-drop" style="opacity: {splash.opacity}"/>
+		{/if}
 	</svg>
 </div>
 
@@ -86,75 +355,34 @@
 		100% { transform: translateX(-80px); }
 	}
 
-	/* ---- Paddler: sewing-machine travel across screen ---- */
-	.paddler-group {
-		animation: paddler-sewing 20s linear infinite;
+	/* ---- Premium Custom Color Palette (Warm Sunset Highlights vs Cool Blue Waves) ---- */
+	.paddler__board  { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1; }
+	.paddler__torso-line { stroke: #f97316; fill: none; }
+	.paddler__head   { fill: #ffedd5; stroke: #f97316; stroke-width: 1.5; }
+	.paddler__arm    { stroke: #ffedd5; fill: none; }
+	.paddler__shaft  { stroke: #475569; fill: none; }
+	.paddler__blade  { fill: #f97316; }
+	.paddler__legs   { stroke: #ea580c; fill: none; }
+
+	/* ---- Micro-animations & Ripple Styling ---- */
+	.paddler__wake {
+		fill: none;
+		stroke: #38bdf8;
+		stroke-width: 1.5;
 	}
 
-	@keyframes paddler-sewing {
-		0%     { transform: translateX(-80px)  translateY(-9px)  rotate(-2deg); animation-timing-function: ease-in; }
-		8.33%  { transform: translateX(33px)   translateY(13px)  rotate(3deg);  animation-timing-function: ease-out; }
-		16.67% { transform: translateX(147px)  translateY(-9px)  rotate(-2deg); animation-timing-function: ease-in; }
-		25%    { transform: translateX(260px)  translateY(13px)  rotate(3deg);  animation-timing-function: ease-out; }
-		33.33% { transform: translateX(373px)  translateY(-9px)  rotate(-2deg); animation-timing-function: ease-in; }
-		41.67% { transform: translateX(487px)  translateY(13px)  rotate(3deg);  animation-timing-function: ease-out; }
-		50%    { transform: translateX(600px)  translateY(-9px)  rotate(-2deg); animation-timing-function: ease-in; }
-		58.33% { transform: translateX(713px)  translateY(13px)  rotate(3deg);  animation-timing-function: ease-out; }
-		66.67% { transform: translateX(827px)  translateY(-9px)  rotate(-2deg); animation-timing-function: ease-in; }
-		75%    { transform: translateX(940px)  translateY(13px)  rotate(3deg);  animation-timing-function: ease-out; }
-		83.33% { transform: translateX(1053px) translateY(-9px)  rotate(-2deg); animation-timing-function: ease-in; }
-		91.67% { transform: translateX(1167px) translateY(13px)  rotate(3deg);  animation-timing-function: ease-out; }
-		100%   { transform: translateX(1280px) translateY(-9px)  rotate(-2deg); }
+	.paddler__splash {
+		fill: none;
+		stroke: #e0f2fe;
+		stroke-width: 1.5;
 	}
 
-	/* ---- Body lean: pivots at hip (translate puts hip at local 0,0) ---- */
-	.paddler__body-group {
-		transform-origin: 0px 0px;
-		animation: body-lean 3.33s ease-in-out infinite;
+	.paddler__splash-drop {
+		fill: #e0f2fe;
 	}
-
-	@keyframes body-lean {
-		0%   { transform: rotate(0deg);   animation-timing-function: ease-in; }
-		15%  { transform: rotate(-22deg); animation-timing-function: linear; }
-		25%  { transform: rotate(-25deg); animation-timing-function: ease-out; }
-		55%  { transform: rotate(-8deg);  animation-timing-function: ease-out; }
-		70%  { transform: rotate(0deg);   animation-timing-function: ease-in; }
-		85%  { transform: rotate(6deg);   animation-timing-function: ease-out; }
-		100% { transform: rotate(0deg);   }
-	}
-
-	/* ---- Paddle stroke: pivots at upper grip (translate puts it at local 0,0) ---- */
-	.paddler__paddle-group {
-		transform-origin: 0px 0px;
-		animation: paddle-stroke 3.33s ease-in-out infinite;
-	}
-
-	@keyframes paddle-stroke {
-		0%   { transform: rotate(-52deg); animation-timing-function: ease-in; }
-		20%  { transform: rotate(-50deg); animation-timing-function: linear; }
-		60%  { transform: rotate(28deg);  animation-timing-function: ease-out; }
-		72%  { transform: rotate(38deg);  animation-timing-function: ease-in; }
-		88%  { transform: rotate(-45deg); animation-timing-function: ease-out; }
-		100% { transform: rotate(-52deg); }
-	}
-
-	/* ---- Colours ---- */
-	.paddler__board  { fill: #bfdbfe; }
-	.paddler__torso  { fill: #7dd3fc; }
-	.paddler__head   { fill: #7dd3fc; }
-	.paddler__arm    { stroke: #93c5fd; fill: none; }
-	.paddler__shaft  { stroke: #e0f2fe; fill: none; }
-	.paddler__blade  { fill: #38bdf8; }
-	.paddler__legs   { stroke: #93c5fd; fill: none; }
 
 	/* ---- Respect reduced motion ---- */
 	@media (prefers-reduced-motion: reduce) {
-		.wave,
-		.paddler-group,
-		.paddler__body-group,
-		.paddler__paddle-group { animation: none; }
-
-		.paddler-group         { transform: translateX(560px) translateY(-9px) rotate(-2deg); }
-		.paddler__paddle-group { transform: rotate(-20deg); }
+		.wave { animation: none; }
 	}
 </style>

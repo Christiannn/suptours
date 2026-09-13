@@ -21,8 +21,84 @@ SITE_ORIGIN="$(site_origin)"
 SUPABASE_ORIGIN="$(supabase_origin)"
 
 # --------------------------------------------------------------------------
+# 0. Would this environment collide with another one?
+#
+# Two environments share this box. A copy-pasted environment file that still
+# carries the other one's DEPLOY_ROOT or DB_PORT would not fail loudly — it
+# would quietly point staging at production's Postgres. Cheap to check, so it
+# is checked every time rather than trusted.
+# --------------------------------------------------------------------------
+log "Checking for collisions with the other environments"
+for other_file in "${ENVIRONMENTS_DIR}"/*.env; do
+	other_name="$(basename "${other_file}" .env)"
+	[[ ${other_name} == "${DEPLOY_ENV}" ]] && continue
+	for key in APP_NAME DEPLOY_ROOT PRIMARY_DOMAIN API_HOST APP_PORT API_PORT DB_PORT POOLER_PORT; do
+		mine="${!key}"
+		theirs="$(env_get "${other_file}" "${key}" | tr -d '"')"
+		[[ -n ${theirs} && ${mine} == "${theirs}" ]] \
+			&& die "${DEPLOY_ENV} and ${other_name} both use ${key}=${mine}.
+     Two environments on one box must not share it. Fix ${other_file}
+     or ${ENV_FILE} before provisioning."
+	done
+done
+ok "No collisions with: $(cd "${ENVIRONMENTS_DIR}" && printf '%s ' *.env | sed "s/\.env//g; s/${DEPLOY_ENV} //")"
+
+# --------------------------------------------------------------------------
+# 0b. Containers left behind by a different Compose project name
+#
+# Compose scopes container names AND named volumes to the project. This stack
+# used to run under the directory-derived name "supabase"; it now runs under
+# APP_NAME so two environments cannot adopt each other's containers.
+#
+# Starting the new project while the old one still holds the ports fails with a
+# bare "port is already allocated", which says nothing about either the cause or
+# the fix — and the fix matters, because db-config is a named volume holding
+# pgsodium's root key. Left to itself, the rename would silently mint a new key
+# and orphan whatever the old one encrypted.
+#
+# Matched on the project's working directory, so the OTHER environment's stack
+# (a legitimately different project in a different directory) is not flagged.
+# --------------------------------------------------------------------------
+legacy_projects="$(docker ps -a \
+	--format '{{.Names}}|{{.Label "com.docker.compose.project"}}|{{.Label "com.docker.compose.project.working_dir"}}' \
+	2>/dev/null \
+	| awk -F'|' -v dir="${SUPABASE_DIR}" -v proj="${APP_NAME}" \
+		'$3 == dir && $2 != "" && $2 != proj { print $2 }' \
+	| sort -u || true)"
+
+if [[ -n ${legacy_projects} ]]; then
+	old="$(printf '%s' "${legacy_projects}" | head -n1)"
+	die "containers for ${SUPABASE_DIR} are still running under the Compose
+     project '${old}', but this environment now uses '${APP_NAME}'.
+
+     Starting both would collide on ports ${API_PORT} and ${DB_PORT}, and the
+     named volume ${old}_db-config holds pgsodium's root key — so the rename
+     has to carry it across rather than let Compose mint a fresh one.
+
+     One-time migration (the database itself is a bind mount under
+     ${SUPABASE_DIR}/volumes and is not touched):
+
+       cd ${SUPABASE_DIR}
+       docker compose -p ${old} -f docker-compose.yml \\
+         -f docker-compose.override.yml --env-file .env down
+       docker volume create ${APP_NAME}_db-config
+       docker run --rm -v ${old}_db-config:/from -v ${APP_NAME}_db-config:/to \\
+         alpine sh -c 'cp -a /from/. /to/'
+
+     Then re-run this script. Keep ${old}_db-config until the stack is healthy."
+fi
+
+# --------------------------------------------------------------------------
 # 1. Directories
 # --------------------------------------------------------------------------
+# /srv is root-owned, so the environment's own root is the one thing the deploy
+# user cannot create for itself. This is the sudo prompt you get on a first
+# provision; everything below it runs unprivileged.
+if [[ ! -d ${DEPLOY_ROOT} ]]; then
+	log "Creating ${DEPLOY_ROOT} (sudo)"
+	sudo install -d -o "$(id -un)" -g "$(id -gn)" "${DEPLOY_ROOT}"
+fi
+
 log "Creating directory layout under ${DEPLOY_ROOT}"
 mkdir -p \
 	"${SUPABASE_DIR}/volumes/db/data" \
@@ -31,6 +107,11 @@ mkdir -p \
 	"${APP_DIR}/shared" \
 	"${BACKUP_DIR}" \
 	"${STATE_DIR}"
+
+# The marker that lets every other script in this clone work out its
+# environment without being told. Gitignored: it belongs to the clone, not the
+# branch.
+printf '%s\n' "${DEPLOY_ENV}" > "${REPO_DIR}/.deploy-env"
 
 # --------------------------------------------------------------------------
 # 2. Operator secrets
@@ -92,6 +173,12 @@ rsync -a \
 	--exclude 'volumes/storage' \
 	"${DEPLOY_DIR}/supabase/upstream/" "${SUPABASE_DIR}/"
 cp "${DEPLOY_DIR}/supabase/docker-compose.override.yml" "${SUPABASE_DIR}/"
+# Optional per-environment layer, applied third by compose(). Staging uses one
+# to shrink the memory ceilings; production has none and takes the defaults.
+if [[ -f ${DEPLOY_DIR}/supabase/docker-compose.${DEPLOY_ENV}.yml ]]; then
+	cp "${DEPLOY_DIR}/supabase/docker-compose.${DEPLOY_ENV}.yml" "${SUPABASE_DIR}/"
+	log "Applying the ${DEPLOY_ENV} compose layer"
+fi
 chmod +x "${SUPABASE_DIR}/volumes/api/envoy/docker-entrypoint.sh"
 
 # --------------------------------------------------------------------------
@@ -140,7 +227,12 @@ set -a
 source "${SECRETS_ENV}"
 set +a
 
-ADDITIONAL_REDIRECT_URLS="${SITE_ORIGIN}/**,https://www.${PRIMARY_DOMAIN}/**"
+# Staging has no www host, so adding one here would put a redirect target in
+# GoTrue's allow-list for a name that does not resolve.
+ADDITIONAL_REDIRECT_URLS="${SITE_ORIGIN}/**"
+if [[ ${REDIRECT_DOMAINS} == *"www.${PRIMARY_DOMAIN}"* ]]; then
+	ADDITIONAL_REDIRECT_URLS="${ADDITIONAL_REDIRECT_URLS},https://www.${PRIMARY_DOMAIN}/**"
+fi
 
 SECRETS_JSON="$(
 	for key in "${!SECRETS[@]}"; do
@@ -152,6 +244,10 @@ SECRETS_TSV="${SECRETS_JSON}" \
 SITE_URL="${SITE_ORIGIN}" \
 API_EXTERNAL_URL="${SUPABASE_ORIGIN}" \
 ADDITIONAL_REDIRECT_URLS="${ADDITIONAL_REDIRECT_URLS}" \
+APP_NAME="${APP_NAME}" \
+API_PORT="${API_PORT}" \
+DB_PORT="${DB_PORT}" \
+POOLER_PORT="${POOLER_PORT}" \
 python3 - "${DEPLOY_DIR}/supabase/env.template" "${SUPABASE_ENV}" <<'PY'
 import os, sys
 
@@ -166,6 +262,7 @@ for line in os.environ["SECRETS_TSV"].splitlines():
 
 for key in (
     "SITE_URL", "API_EXTERNAL_URL", "ADDITIONAL_REDIRECT_URLS",
+    "APP_NAME", "API_PORT", "DB_PORT", "POOLER_PORT",
     "SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS",
     "SMTP_ADMIN_EMAIL", "SMTP_SENDER_NAME",
 ):
@@ -211,13 +308,47 @@ log "Rendering ${SHARED_ENV}"
 	echo "BODY_SIZE_LIMIT=52428800"
 	# Server-side calls reach the gateway directly rather than looping out
 	# through DNS, TLS and Caddy to hit a container on this same host.
-	echo "SUPABASE_INTERNAL_URL=http://127.0.0.1:8000"
+	echo "SUPABASE_INTERNAL_URL=http://127.0.0.1:${API_PORT}"
 	echo "ENABLE_OAUTH=${ENABLE_OAUTH:-}"
 	echo "ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}"
 	echo "GEMINI_API_KEY=${GEMINI_API_KEY:-}"
 	echo "BRAVE_SEARCH_API_KEY=${BRAVE_SEARCH_API_KEY:-}"
 } > "${SHARED_ENV}"
 chmod 600 "${SHARED_ENV}"
+
+# --------------------------------------------------------------------------
+# 5b. Basic-auth credentials for environments that want a password in front
+# --------------------------------------------------------------------------
+# Minted here rather than typed in, and carried forward on every re-provision
+# for the same reason the Supabase secrets are: a password that silently
+# changes under you is worse than no password. Only the bcrypt hash reaches
+# Caddy; the plaintext is shown once, here, and then only lives in your
+# password manager.
+if is_enabled BASIC_AUTH; then
+	BASIC_AUTH_FILE="${DEPLOY_ROOT}/basic-auth.env"
+	if [[ ! -f ${BASIC_AUTH_FILE} ]]; then
+		need_cmd caddy
+		plain="$(gen_hex 12)"
+		hash="$(caddy hash-password --plaintext "${plain}")"
+		{
+			echo "# Generated by provision.sh. Delete this file and re-provision to rotate."
+			echo "BASIC_AUTH_USER=${DEPLOY_ENV}"
+			echo "BASIC_AUTH_HASH=${hash}"
+		} > "${BASIC_AUTH_FILE}"
+		chmod 600 "${BASIC_AUTH_FILE}"
+		cat <<-EOF
+
+		    ${PRIMARY_DOMAIN} is password-protected. Save these now — the
+		    plaintext is not stored anywhere and is not shown again:
+
+		      user      ${DEPLOY_ENV}
+		      password  ${plain}
+
+		EOF
+	else
+		ok "Basic-auth credentials preserved (${BASIC_AUTH_FILE})"
+	fi
+fi
 
 # --------------------------------------------------------------------------
 # 6. Start Supabase
@@ -229,7 +360,7 @@ log "Waiting for the API gateway"
 # Every /auth/v1/* path is a protected route at the gateway — there is no
 # unauthenticated health endpoint — so this needs a valid apikey or Envoy
 # rejects it with 401 before GoTrue ever sees the request.
-wait_for_http "http://127.0.0.1:8000/auth/v1/health" 60 3 \
+wait_for_http "http://127.0.0.1:${API_PORT}/auth/v1/health" 60 3 \
 	-H "apikey: ${SECRETS[ANON_KEY]}" \
 	|| die "Supabase gateway did not become healthy — check: docker compose logs"
 ok "Supabase is up"
@@ -244,7 +375,7 @@ ok "pg_stat_statements ready"
 # 7. systemd + Caddy (need root)
 # --------------------------------------------------------------------------
 log "Installing systemd units and the Caddy vhost (sudo)"
-sudo "${DEPLOY_DIR}/scripts/install-system-units.sh"
+sudo "${DEPLOY_DIR}/scripts/install-system-units.sh" --env "${DEPLOY_ENV}"
 
 cat <<EOF
 
@@ -253,7 +384,7 @@ $(ok "Provisioning complete")
   Site            ${SITE_ORIGIN}
   Supabase API    ${SUPABASE_ORIGIN}
   Studio          not public — tunnel with local/Open-Studio.ps1, then
-                  http://localhost:8000 (user: $(env_get "${SUPABASE_ENV}" DASHBOARD_USERNAME))
+                  http://localhost:${API_PORT} (user: $(env_get "${SUPABASE_ENV}" DASHBOARD_USERNAME))
   OAuth redirect  ${SUPABASE_ORIGIN}/auth/v1/callback
 
 Next: deploy/scripts/deploy.sh

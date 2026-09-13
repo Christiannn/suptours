@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# Builds and releases the app. Safe to run repeatedly; never destroys data.
+# Builds and releases the app for one environment. Safe to run repeatedly;
+# never destroys data.
 #
-#   deploy.sh [--ref <git-ref>] [--dry-run] [--skip-backup]
+#   deploy.sh --env <name> [--ref <git-ref>] [--dry-run] [--skip-backup] [--force-ref]
 #
 # The build happens in a fresh release directory and the live symlink only
 # moves once it has succeeded, so a broken build cannot take the site down. If
@@ -16,18 +17,22 @@
 source "$(dirname "${BASH_SOURCE[0]}")/lib/common.sh"
 
 require_not_root
-for cmd in git node npm curl docker; do need_cmd "${cmd}"; done
+for cmd in git node npm curl docker flock; do need_cmd "${cmd}"; done
 
 REF="${GIT_BRANCH}"
 DRY_RUN=0
 SKIP_BACKUP=0
+FORCE_REF=0
 
 while [[ $# -gt 0 ]]; do
 	case $1 in
+		--env) shift 2 || die "--env needs a value" ;;   # consumed by lib/common.sh
+		--env=*) shift ;;                               # consumed by lib/common.sh
 		--ref) REF=$2; shift 2 ;;
 		--dry-run) DRY_RUN=1; shift ;;
 		--skip-backup) SKIP_BACKUP=1; shift ;;
-		-h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+		--force-ref) FORCE_REF=1; shift ;;
+		-h|--help) sed -n '2,15p' "$0"; exit 0 ;;
 		*) die "unknown argument: $1" ;;
 	esac
 done
@@ -41,12 +46,41 @@ POSTGRES_PASSWORD="$(env_get "${SUPABASE_DIR}/.env" POSTGRES_PASSWORD)"
 [[ -n ${ANON_KEY} ]] || die "ANON_KEY missing from ${SUPABASE_DIR}/.env"
 
 # --------------------------------------------------------------------------
+# 0. Is this ref allowed here, and is anyone else deploying?
+# --------------------------------------------------------------------------
+if [[ -n ${ALLOWED_REFS:-} ]] && ((!FORCE_REF)); then
+	allowed=0
+	# read -ra, not `for p in ${ALLOWED_REFS}`: an unquoted expansion is subject
+	# to pathname expansion, so the "v*" pattern would quietly become
+	# "vite.config.ts" whenever the working directory happens to contain it —
+	# and every tag deploy would then be refused.
+	IFS=' ' read -ra ref_patterns <<< "${ALLOWED_REFS}"
+	for pattern in "${ref_patterns[@]}"; do
+		# shellcheck disable=SC2053 — the glob on the right is the point.
+		[[ ${REF} == ${pattern} ]] && { allowed=1; break; }
+	done
+	((allowed)) || die "refusing to deploy '${REF}' to ${DEPLOY_ENV}.
+     This environment accepts: ${ALLOWED_REFS}
+     Promote it first, or pass --force-ref if you really mean it."
+fi
+
+# Held for the lifetime of the script: two deploys of the same environment
+# would race for the release symlink.
+exec {DEPLOY_LOCK_FD}>"${DEPLOY_ROOT}/deploy.lock"
+flock -w "${LOCK_WAIT}" "${DEPLOY_LOCK_FD}" \
+	|| die "another ${DEPLOY_ENV} deploy is already running (${DEPLOY_ROOT}/deploy.lock)"
+
+log "Deploying to ${DEPLOY_ENV} (${SITE_ORIGIN})"
+
+# --------------------------------------------------------------------------
 # 1. Back up before anything else
 # --------------------------------------------------------------------------
-if ((SKIP_BACKUP)); then
+if ! is_enabled ENABLE_BACKUPS; then
+	log "No pre-deploy backup: ${DEPLOY_ENV} sets ENABLE_BACKUPS=0"
+elif ((SKIP_BACKUP)); then
 	warn "Skipping pre-deploy backup (--skip-backup)"
 else
-	"${DEPLOY_DIR}/scripts/backup.sh" predeploy
+	"${DEPLOY_DIR}/scripts/backup.sh" predeploy --env "${DEPLOY_ENV}"
 fi
 
 # --------------------------------------------------------------------------
@@ -59,7 +93,7 @@ fi
 [[ -d ${REPO_DIR}/.git ]] || die "${REPO_DIR} is not a git clone"
 
 log "Fetching ${REF}"
-git -C "${REPO_DIR}" fetch --quiet --prune origin
+git -C "${REPO_DIR}" fetch --quiet --prune --tags origin
 git -C "${REPO_DIR}" rev-parse --verify --quiet "origin/${REF}^{commit}" >/dev/null \
 	&& RESOLVED="origin/${REF}" \
 	|| RESOLVED="${REF}"
@@ -68,14 +102,13 @@ SUBJECT="$(git -C "${REPO_DIR}" log -1 --format=%s "${RESOLVED}")"
 log "Deploying ${COMMIT} — ${SUBJECT}"
 
 # The ref being deployed has to be one that can build for a server target.
-# Deploying a ref from before the adapter switch — `main` before this work is
-# merged, or an older tag — otherwise fails deep inside the build with an
+# Deploying a ref from before the adapter switch — an old tag, or a long-lived
+# branch that predates it — otherwise fails deep inside the build with an
 # adapter-auto error that gives no hint about the actual cause.
 if git -C "${REPO_DIR}" show "${RESOLVED}:svelte.config.js" 2>/dev/null | grep -q 'adapter-auto'; then
 	die "${RESOLVED} still uses @sveltejs/adapter-auto, which cannot build for a VPS.
-     Deploy a ref that has the adapter-node switch:
-       deploy.sh --ref claude/suptur-vps-deployment-ncnj8t
-     or merge that branch into ${GIT_BRANCH} and re-run."
+     Deploy a ref that has the adapter-node switch — anything from develop,
+     staging or main since the VPS deployment landed."
 fi
 
 if ((DRY_RUN)); then
@@ -103,20 +136,26 @@ log "Creating release ${RELEASE}"
 mkdir -p "${RELEASE_DIR}"
 git -C "${REPO_DIR}" archive --format=tar "${RESOLVED}" | tar -x -C "${RELEASE_DIR}"
 
-log "Installing dependencies"
-npm --prefix "${RELEASE_DIR}" ci --no-audit --no-fund
-
 # PUBLIC_SUPABASE_* come from $env/static/public and are INLINED into the
 # browser bundle at build time. They have to be correct here — a restart will
 # not fix them later, only another build will.
-log "Building"
-(
-	cd "${RELEASE_DIR}" || die "cannot enter ${RELEASE_DIR}"
-	PUBLIC_SUPABASE_URL="${SUPABASE_ORIGIN}" \
-	PUBLIC_SUPABASE_ANON_KEY="${ANON_KEY}" \
-	NODE_ENV=production \
-	npm run build
-)
+#
+# npm ci and vite build together are the memory-hungry part, and production and
+# staging share 8 GB. The build lock is what stops two of them overlapping.
+build_release() {
+	log "Installing dependencies"
+	npm --prefix "${RELEASE_DIR}" ci --no-audit --no-fund
+
+	log "Building"
+	(
+		cd "${RELEASE_DIR}" || die "cannot enter ${RELEASE_DIR}"
+		PUBLIC_SUPABASE_URL="${SUPABASE_ORIGIN}" \
+		PUBLIC_SUPABASE_ANON_KEY="${ANON_KEY}" \
+		NODE_ENV=production \
+		npm run build
+	)
+}
+with_lock "${BUILD_LOCK}" build build_release
 [[ -f ${RELEASE_DIR}/build/index.js ]] || die "build produced no build/index.js"
 
 # --------------------------------------------------------------------------
@@ -126,7 +165,10 @@ log "Applying database migrations"
 (
 	cd "${RELEASE_DIR}" || die "cannot enter ${RELEASE_DIR}"
 	# --include-seed is off by default and stays off: supabase/seed.sql creates
-	# the dev admin account (admin@suptours.dk / password) and must never run here.
+	# the dev admin account (admin@suptours.dk / password) and must never run
+	# here. Staging gets its seed data from reset-staging-db.sh instead, which
+	# is explicit and refuses to run anywhere else.
+	#
 	# PGSSLMODE: the CLI always opens with a TLS handshake and the Supabase
 	# Postgres image does not serve TLS, so this fails with "server refused TLS
 	# connection" without it. An sslmode inside --db-url is silently ignored —
@@ -138,7 +180,7 @@ log "Applying database migrations"
 	# and anyone positioned to read this traffic could equally read
 	# POSTGRES_PASSWORD from the 0600 .env beside it.
 	PGSSLMODE=disable npx --yes supabase db push \
-		--db-url "postgresql://postgres:${POSTGRES_PASSWORD}@127.0.0.1:5432/postgres" \
+		--db-url "postgresql://postgres:${POSTGRES_PASSWORD}@127.0.0.1:${DB_PORT}/postgres" \
 		--yes
 )
 
@@ -192,7 +234,9 @@ find "${RELEASES_DIR}" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
 	done
 
 # Public reachability is a separate question from local health: this is what
-# catches DNS, certificates or Caddy being wrong.
+# catches DNS, certificates or Caddy being wrong. It works on a password-
+# protected environment too, because the Caddy vhost exempts /healthz from
+# basic_auth precisely so this check stays meaningful.
 if curl -fsS --max-time 10 -o /dev/null "${SITE_ORIGIN}/healthz"; then
 	ok "Live at ${SITE_ORIGIN} (${COMMIT})"
 else
